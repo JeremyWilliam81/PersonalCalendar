@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\PersonalCalendar.Application\PersonalCalendar.Application.csproj" />
+    <ProjectReference Include="..\PersonalCalendar.Infrastructure\PersonalCalendar.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NodaTime.Serialization.SystemTextJson" Version="1.4.0" />
+  </ItemGroup>
+</Project>

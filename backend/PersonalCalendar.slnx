@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PersonalCalendar.Api/PersonalCalendar.Api.csproj" />
+    <Project Path="src/PersonalCalendar.Application/PersonalCalendar.Application.csproj" />
+    <Project Path="src/PersonalCalendar.Domain/PersonalCalendar.Domain.csproj" />
+    <Project Path="src/PersonalCalendar.Infrastructure/PersonalCalendar.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PersonalCalendar.Api.Tests/PersonalCalendar.Api.Tests.csproj" />
+    <Project Path="tests/PersonalCalendar.Application.Tests/PersonalCalendar.Application.Tests.csproj" />
+    <Project Path="tests/PersonalCalendar.Domain.Tests/PersonalCalendar.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

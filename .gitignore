@@ -1,0 +1,27 @@
+# .NET
+backend/**/bin/
+backend/**/obj/
+*.user
+*.suo
+backend/src/PersonalCalendar.Api/wwwroot/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+*.log
+.env*
+
+# Local data
+*.db
+*.db-shm
+*.db-wal
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/
+.vs/
