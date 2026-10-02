@@ -10,6 +10,8 @@ This contract describes what users and assistive technology can rely on. It is t
 
 **Keyboard in the grid** (roving `tabindex`, so one day cell can be tabbed to):
 
+> Superseded in 002: Enter/Space opens the day view; see specs/002-calendar-views/contracts/ui-interaction.md.
+
 | Key | Action |
 |---|---|
 | ← / → | Previous or next day |

@@ -1,19 +1,20 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import type { MonthView as MonthViewData } from '../api/types'
+import { useNarrowScreen } from '../hooks/useNarrowScreen'
 import { addDays, addMonthsClamped, endOfWeek, isWithin, startOfWeek } from '../lib/dates'
-import { formatMonthTitle, formatWeekdayName } from '../lib/format'
+import { formatWeekdayName } from '../lib/format'
 import { DayCell } from './DayCell'
 import { DayOverflowDialog } from './DayOverflowDialog'
 
 interface MonthViewProps {
   month: MonthViewData
   focusedDate: string
+  /** Id of the period heading in the shared header, which names the grid. */
+  titleId: string
   /** `changeMonth` is true when the new date needs a different month loaded (Page Up/Down or leaving the grid). */
   onMoveFocus: (date: string, changeMonth: boolean) => void
-  onPreviousMonth: () => void
-  onNextMonth: () => void
-  onToday: () => void
-  onCreate: (date: string) => void
+  /** Tapping a day, or Enter/Space on the focused day, opens it in the day view (FR-013). */
+  onOpenDay: (date: string) => void
   /** The day the event was opened from becomes the focused day. */
   onOpenEvent: (id: string, date: string) => void
   maxVisible?: number
@@ -27,17 +28,15 @@ const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6]
 export function MonthView({
   month,
   focusedDate,
+  titleId,
   onMoveFocus,
-  onPreviousMonth,
-  onNextMonth,
-  onToday,
-  onCreate,
+  onOpenDay,
   onOpenEvent,
   maxVisible = 3,
   focusRequest = 0,
 }: MonthViewProps) {
-  const titleId = useId()
   const gridRef = useRef<HTMLDivElement>(null)
+  const narrow = useNarrowScreen()
   const moveFocusIntoGrid = useRef(false)
   const [overflowDate, setOverflowDate] = useState<string | null>(null)
 
@@ -77,8 +76,8 @@ export function MonthView({
       End: () => move(endOfWeek(date)),
       PageUp: () => move(addMonthsClamped(date, -1), true),
       PageDown: () => move(addMonthsClamped(date, 1), true),
-      Enter: () => onCreate(date),
-      ' ': () => onCreate(date),
+      Enter: () => onOpenDay(date),
+      ' ': () => onOpenDay(date),
     }
     const action = actions[event.key]
     if (!action) return
@@ -90,24 +89,6 @@ export function MonthView({
 
   return (
     <section className="month" aria-labelledby={titleId}>
-      <div className="month-header">
-        <h2 id={titleId}>{formatMonthTitle(month.year, month.month)}</h2>
-        <div className="month-nav">
-          <button type="button" aria-label="Previous month" onClick={onPreviousMonth}>
-            <span aria-hidden="true">‹</span>
-          </button>
-          <button type="button" onClick={onToday}>
-            Today
-          </button>
-          <button type="button" aria-label="Next month" onClick={onNextMonth}>
-            <span aria-hidden="true">›</span>
-          </button>
-          <button type="button" className="button-primary" onClick={() => onCreate(focusedDate)}>
-            New event
-          </button>
-        </div>
-      </div>
-
       <div role="grid" aria-labelledby={titleId} className="grid" ref={gridRef} onKeyDown={handleKeyDown}>
         <div role="row" className="grid-row weekdays">
           {WEEKDAYS.map((index) => (
@@ -125,7 +106,8 @@ export function MonthView({
                 timeZone={month.timeZone}
                 focused={day.date === focusedDate}
                 maxVisible={maxVisible}
-                onFocusDay={(date) => move(date)}
+                narrow={narrow}
+                onOpenDay={onOpenDay}
                 onOpenEvent={(id) => onOpenEvent(id, day.date)}
                 onShowAll={setOverflowDate}
               />

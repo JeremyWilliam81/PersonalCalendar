@@ -70,3 +70,50 @@ export type ApiResult<T> =
   | { kind: 'notFound' }
   | { kind: 'saveFailed' }
   | { kind: 'network' }
+
+// Day and week views: specs/002-calendar-views/contracts/http-api.md.
+
+export interface HourMark {
+  offsetMinutes: number
+  /** Local wall time, HH:mm. A repeated hour appears twice; a skipped hour is absent. */
+  label: string
+}
+
+export interface TimedSegment {
+  /** The whole event, not clipped to the day. */
+  event: EventSummary
+  offsetMinutes: number
+  durationMinutes: number
+  continuesBefore: boolean
+  continuesAfter: boolean
+  column: number
+  columnCount: number
+}
+
+export interface AllDayBar {
+  event: EventSummary
+  startIndex: number
+  span: number
+  lane: number
+  continuesBefore: boolean
+  continuesAfter: boolean
+}
+
+export interface TimelineDay {
+  date: DateString
+  isToday: boolean
+  dayStart: OffsetDateTimeString
+  dayEnd: OffsetDateTimeString
+  lengthMinutes: number
+  hourMarks: HourMark[]
+  allDay: EventSummary[]
+  timed: TimedSegment[]
+}
+
+export interface DaysView {
+  timeZone: string
+  today: DateString
+  now: OffsetDateTimeString
+  days: TimelineDay[]
+  allDayBars: AllDayBar[]
+}

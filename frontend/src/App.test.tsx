@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 import App from './App'
 import { ApiContext } from './api/ApiContext'
-import { allDaySummary, octoberMonth, stubApi, timedSummary } from './test/fixtures'
+import { allDaySummary, daysView, octoberMonth, octoberWeekContent, stubApi, timedSummary } from './test/fixtures'
+import { setNarrowViewport } from './test/viewport'
 
 const month = octoberMonth({
   '2026-10-14': [
@@ -23,6 +24,15 @@ function renderApp() {
 }
 
 describe('App (whole page)', () => {
+  // Only Date is faked, so user-event timers keep working. Oct 1 is "today" in every US zone.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-01T17:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('has no axe violations with the month view, the details dialog and the form dialog open in turn', async () => {
     const user = userEvent.setup()
     const { container } = renderApp()
@@ -45,13 +55,73 @@ describe('App (whole page)', () => {
 
     await user.tab()
     expect(screen.getByRole('button', { name: 'Previous month' })).toHaveFocus()
+    for (const name of ['Today', 'Next month', 'Go to date', 'Day', 'Week', 'Month', 'New event']) {
+      await user.tab()
+      expect(screen.getByRole('button', { name })).toHaveFocus()
+    }
     await user.tab()
-    await user.tab()
-    await user.tab()
-    expect(screen.getByRole('button', { name: 'New event' })).toHaveFocus()
-    await user.tab()
-    expect(screen.getByRole('gridcell', { name: 'Thursday, October 1, 2026' })).toHaveFocus()
+    expect(screen.getByRole('gridcell', { name: 'Thursday, October 1, 2026, open in day view' })).toHaveFocus()
     await user.tab()
     expect(document.body).toHaveFocus()
+  })
+})
+
+describe('App (whole page): every view', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-14T15:00:00Z'))
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  function renderWithDays() {
+    const api = stubApi({
+      getMonth: vi.fn(async () => ({ kind: 'ok' as const, value: month })),
+      getDays: vi.fn(async (_tz: string, start: string, count: 1 | 7) => ({
+        kind: 'ok' as const,
+        value: daysView(start, count, octoberWeekContent()),
+      })),
+    })
+    return render(
+      <ApiContext.Provider value={api}>
+        <App />
+      </ApiContext.Provider>,
+    )
+  }
+
+  it('has no axe violations in the day, wide week, narrow week and month views, or with Go to date open', async () => {
+    const user = userEvent.setup()
+    const { container } = renderWithDays()
+    await screen.findByRole('grid')
+
+    await user.click(screen.getByRole('button', { name: 'Day' }))
+    await screen.findByRole('button', { name: /^Dentist,/ })
+    expect((await axe(container)).violations).toEqual([])
+
+    await user.click(screen.getByRole('button', { name: 'Week' }))
+    await screen.findByRole('gridcell', { name: /^Wednesday, October 14, 2026/ })
+    expect((await axe(container)).violations).toEqual([])
+
+    act(() => setNarrowViewport(true))
+    expect((await axe(container)).violations).toEqual([])
+    act(() => setNarrowViewport(false))
+
+    await user.click(screen.getByRole('button', { name: 'Go to date' }))
+    expect((await axe(container)).violations).toEqual([])
+  })
+
+  it('adds no keyboard shortcuts beyond the Constitution IV baseline', async () => {
+    const user = userEvent.setup()
+    renderWithDays()
+    await screen.findByRole('grid')
+    const path = window.location.pathname
+
+    document.body.focus()
+    await user.keyboard('dwmtn')
+
+    expect(window.location.pathname).toBe(path)
+    expect(screen.getByRole('button', { name: 'Month' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

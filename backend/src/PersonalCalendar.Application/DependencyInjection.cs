@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddSingleton<ZoneLookup>();
         services.AddScoped<CreateEvent>();
         services.AddScoped<GetMonthView>();
+        services.AddScoped<GetDaysView>();
         services.AddScoped<GetEventDetails>();
         services.AddScoped<UpdateEvent>();
         services.AddScoped<DeleteEvent>();

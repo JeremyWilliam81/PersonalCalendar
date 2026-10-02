@@ -27,6 +27,24 @@ public sealed class PerformanceTests : IDisposable
         Assert.True(stopwatch.ElapsedMilliseconds < 500, $"Month view took {stopwatch.ElapsedMilliseconds} ms (SC-004 budget: 500 ms).");
     }
 
+    [Fact]
+    public async Task DaysView_With5000Events_RespondsQuickly()
+    {
+        var client = _factory.CreateClient();
+        await SeedAsync(5000);
+        var url = $"/api/calendar/days?timeZone={Uri.EscapeDataString(Chicago)}&start=2026-10-11&count=7";
+        (await client.GetAsync(url)).EnsureSuccessStatusCode(); // warm-up
+
+        var stopwatch = Stopwatch.StartNew();
+        var response = await client.GetAsync(url);
+        stopwatch.Stop();
+
+        response.EnsureSuccessStatusCode();
+        var week = await response.ReadJsonAsync();
+        Assert.NotEmpty(week.GetProperty("days").EnumerateArray().SelectMany(d => d.GetProperty("timed").EnumerateArray()));
+        Assert.True(stopwatch.ElapsedMilliseconds <= 300, $"Week view took {stopwatch.ElapsedMilliseconds} ms (002 SC-002 budget: 300 ms).");
+    }
+
     /// <summary>Spreads events across 2026–2027: mostly one-hour timed events, every tenth an all-day event.</summary>
     private async Task SeedAsync(int count)
     {
