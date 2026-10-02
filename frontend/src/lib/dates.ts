@@ -45,3 +45,19 @@ export function monthOf(date: string): { year: number; month: number } {
 export function isWithin(date: string, first: string, last: string): boolean {
   return date >= first && date <= last
 }
+
+/** The range navigation supports (FR-012). */
+export const MIN_DATE = '1900-01-01'
+export const MAX_DATE = '2199-12-31'
+
+/** A real calendar date written exactly as yyyy-MM-dd (rejects 2026-02-30, 2027-02-29, …). */
+export function isValidDateString(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+}
+
+export function isInSupportedRange(date: string): boolean {
+  return isWithin(date, MIN_DATE, MAX_DATE)
+}

@@ -7,9 +7,12 @@ import {
   formatTimeShort,
   formatTimedRange,
   formatWeekdayName,
+  formatHourLabel,
+  formatPeriodTitle,
   localDateInZone,
   toLocalInputValue,
 } from './format'
+import { setLocale } from './locale'
 
 // Locale is pinned to en-US in src/test/setup.ts; zones are always explicit.
 describe('format', () => {
@@ -66,5 +69,42 @@ describe('format', () => {
     expect(toLocalInputValue('2026-10-14T09:00:00-05:00', 'America/Chicago')).toBe('2026-10-14T09:00')
     expect(toLocalInputValue('2026-10-14T09:00:00-05:00', 'America/New_York')).toBe('2026-10-14T10:00')
     expect(toLocalInputValue('2026-10-14T18:30:00Z', 'Asia/Kolkata')).toBe('2026-10-15T00:00')
+  })
+})
+
+// The header's period title (FR-007, contracts/ui-interaction "Shared header"). Weeks use full month names.
+describe('formatPeriodTitle', () => {
+  it('uses the full date for a day', () => {
+    expect(formatPeriodTitle('day', '2026-10-14')).toBe('Wednesday, October 14, 2026')
+  })
+
+  it('uses a Sunday-to-Saturday range for a week, naming both months and years when crossed', () => {
+    expect(formatPeriodTitle('week', '2026-10-14')).toBe('October 11 – 17, 2026')
+    expect(formatPeriodTitle('week', '2026-10-28')).toBe('October 25 – 31, 2026')
+    expect(formatPeriodTitle('week', '2026-09-30')).toBe('September 27 – October 3, 2026')
+    expect(formatPeriodTitle('week', '2026-11-01')).toBe('November 1 – 7, 2026')
+    expect(formatPeriodTitle('week', '2026-12-30')).toBe('December 27, 2026 – January 2, 2027')
+    expect(formatPeriodTitle('week', '2027-03-03')).toBe('February 28 – March 6, 2027')
+  })
+
+  it('uses the month and year for a month', () => {
+    expect(formatPeriodTitle('month', '2026-10-14')).toBe('October 2026')
+  })
+})
+
+describe('formatHourLabel', () => {
+  it('formats a wall-clock hour label in the device locale', () => {
+    expect(formatHourLabel('01:00')).toBe('1 AM')
+    expect(formatHourLabel('13:00')).toBe('1 PM')
+  })
+
+  it('follows a 24-hour locale (FR-027)', () => {
+    setLocale('en-GB')
+    try {
+      expect(formatHourLabel('01:00')).toBe('01')
+      expect(formatHourLabel('13:00')).toBe('13')
+    } finally {
+      setLocale('en-US')
+    }
   })
 })

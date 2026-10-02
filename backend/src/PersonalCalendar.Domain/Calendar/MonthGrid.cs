@@ -42,7 +42,7 @@ public static class MonthGrid
             for (var offset = 0; offset < 7; offset++)
             {
                 var date = weekStart.PlusDays(offset);
-                var dayEvents = eventsByDay.TryGetValue(date, out var list) ? Order(list) : [];
+                var dayEvents = eventsByDay.TryGetValue(date, out var list) ? EventOrdering.Order(list) : [];
                 week.Add(new DayCell(date, date.Year == year && date.Month == month, date == today, dayEvents));
             }
 
@@ -71,16 +71,6 @@ public static class MonthGrid
                 return false;
         }
     }
-
-    /// <summary>All-day events first (by start date, then title), then timed events (by start, then title).</summary>
-    private static IReadOnlyList<CalendarEvent> Order(List<CalendarEvent> events) =>
-        events
-            .OrderBy(e => e.Schedule is AllDaySchedule ? 0 : 1)
-            .ThenBy(e => e.Schedule is AllDaySchedule allDay ? allDay.StartDate : LocalDate.MinIsoValue)
-            .ThenBy(e => e.Schedule is TimedSchedule timed ? timed.Start : Instant.MinValue)
-            .ThenBy(e => e.Title, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(e => e.Id.Value)
-            .ToList();
 
     private static int DaysSinceSunday(LocalDate date) => (int)date.DayOfWeek % 7;
 }

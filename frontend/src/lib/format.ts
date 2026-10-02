@@ -1,4 +1,5 @@
 import { getLocale } from './locale'
+import { periodOf, type ViewType } from './viewState'
 
 // All user-facing date/time text goes through Intl in the device locale (FR-021).
 // Plain dates (all-day events, grid days) are formatted in UTC so they never shift.
@@ -97,4 +98,35 @@ export function localDateInZone(isoWithOffset: string, timeZone: string): string
 export function toLocalInputValue(isoWithOffset: string, timeZone: string): string {
   const p = partsInZone(isoWithOffset, timeZone)
   return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`
+}
+
+/** The header title for a view's period (FR-007): full date, Sunday–Saturday range, or month and year. */
+export function formatPeriodTitle(view: ViewType, date: string): string {
+  if (view === 'day') return formatFullDate(date)
+  if (view === 'month') return formatMonthTitle(Number(date.slice(0, 4)), Number(date.slice(5, 7)))
+  const { first, last } = periodOf({ view, date })
+  const range = new Intl.DateTimeFormat(getLocale(), {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).formatRange(dateOnlyToUtc(first), dateOnlyToUtc(last))
+  // formatRange separates with thin spaces; plain spaces read the same.
+  return normalize(range).replace(/[  ]/g, ' ')
+}
+
+/** An hour mark's wall-clock label (HH:mm) in the device locale, e.g. "1 AM" or "01". */
+export function formatHourLabel(label: string): string {
+  return normalize(
+    new Intl.DateTimeFormat(getLocale(), { hour: 'numeric', timeZone: 'UTC' }).format(
+      new Date(`1970-01-01T${label}:00Z`),
+    ),
+  )
+}
+
+/** "Wednesday, October 14": a day heading where the year is already in the period title. */
+export function formatDayHeading(date: string): string {
+  return new Intl.DateTimeFormat(getLocale(), { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(
+    dateOnlyToUtc(date),
+  )
 }

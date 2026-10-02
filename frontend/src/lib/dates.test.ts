@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, addMonthsClamped, endOfWeek, isWithin, monthOf, startOfWeek } from './dates'
+import {
+  addDays,
+  addMonthsClamped,
+  endOfWeek,
+  isInSupportedRange,
+  isValidDateString,
+  isWithin,
+  MAX_DATE,
+  MIN_DATE,
+  monthOf,
+  startOfWeek,
+} from './dates'
 
 // Plain calendar-date arithmetic for grid keyboard navigation. No zones are involved.
 describe('dates', () => {
@@ -30,5 +41,22 @@ describe('dates', () => {
   it('checks whether a date is inside an inclusive range', () => {
     expect(isWithin('2026-10-14', '2026-09-27', '2026-10-31')).toBe(true)
     expect(isWithin('2026-11-01', '2026-09-27', '2026-10-31')).toBe(false)
+  })
+
+  it('accepts only real dates in strict yyyy-MM-dd form', () => {
+    expect(isValidDateString('2026-10-14')).toBe(true)
+    expect(isValidDateString('2028-02-29')).toBe(true)
+    for (const bad of ['2027-02-29', '2026-02-30', '2026-13-01', '2026-1-5', '', '2026-10-14T00:00', '2026-00-10']) {
+      expect(isValidDateString(bad), bad).toBe(false)
+    }
+  })
+
+  it('limits navigation to 1900-01-01 .. 2199-12-31 (FR-012)', () => {
+    expect(MIN_DATE).toBe('1900-01-01')
+    expect(MAX_DATE).toBe('2199-12-31')
+    expect(isInSupportedRange('1900-01-01')).toBe(true)
+    expect(isInSupportedRange('2199-12-31')).toBe(true)
+    expect(isInSupportedRange('1899-12-31')).toBe(false)
+    expect(isInSupportedRange('2200-01-01')).toBe(false)
   })
 })

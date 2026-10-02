@@ -1,6 +1,6 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { useCalendarApi } from '../api/ApiContext'
-import type { EventDetails, EventInput, FieldErrors } from '../api/types'
+import type { EventDetails, EventInput, FieldErrors, LocalDateTimeString } from '../api/types'
 import { describeEvent } from '../lib/describe'
 import { formatFullDate, formatLocalTime, toLocalInputValue } from '../lib/format'
 import { messageFor } from '../lib/messages'
@@ -19,6 +19,8 @@ interface EventFormDialogProps {
   now?: Date
   /** The event being edited (edit mode). */
   event?: EventDetails
+  /** Start and end for a new event, e.g. from a tapped time slot (FR-013b); overrides the FR-005 defaults. */
+  initialTimes?: { start: LocalDateTimeString; end: LocalDateTimeString }
 }
 
 interface FormValues {
@@ -44,8 +46,8 @@ interface Adjustment {
 
 type FormError = 'saveFailed' | 'timeZone' | 'conflict' | 'gone' | null
 
-function newEventValues(initialDate: string, now: Date): FormValues {
-  const defaults = newEventDefaults(initialDate, now)
+function newEventValues(initialDate: string, now: Date, initialTimes?: { start: string; end: string }): FormValues {
+  const defaults = initialTimes ?? newEventDefaults(initialDate, now)
   return {
     title: '',
     isAllDay: false,
@@ -75,7 +77,15 @@ function nullIfBlank(value: string): string | null {
   return value.trim() === '' ? null : value
 }
 
-export function EventFormDialog({ initialDate, timeZone, onSaved, onClose, now, event }: EventFormDialogProps) {
+export function EventFormDialog({
+  initialDate,
+  timeZone,
+  onSaved,
+  onClose,
+  now,
+  event,
+  initialTimes,
+}: EventFormDialogProps) {
   const api = useCalendarApi()
   const announce = useAnnounce()
   const titleId = useId()
@@ -86,7 +96,7 @@ export function EventFormDialog({ initialDate, timeZone, onSaved, onClose, now, 
   // The event as last loaded; its version guards against overwriting changes made elsewhere (R8).
   const [current, setCurrent] = useState<EventDetails | undefined>(event)
   const [initial, setInitial] = useState(() =>
-    event ? valuesFromEvent(event, timeZone) : newEventValues(initialDate, now ?? new Date()),
+    event ? valuesFromEvent(event, timeZone) : newEventValues(initialDate, now ?? new Date(), initialTimes),
   )
   const [values, setValues] = useState<FormValues>(initial)
   const [errors, setErrors] = useState<FieldErrors>({})
