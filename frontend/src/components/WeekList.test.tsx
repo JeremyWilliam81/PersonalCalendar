@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
-import { octoberWeek } from '../test/fixtures'
+import { daysView, octoberWeek, recurringSummary, segment } from '../test/fixtures'
 import { WeekList } from './WeekList'
 
 function renderList(overrides: Partial<Parameters<typeof WeekList>[0]> = {}) {
@@ -52,7 +52,7 @@ describe('WeekList (narrow, FR-004a)', () => {
       '10:00 PM – 1:00 AMLate show',
     ])
     await user.click(wed[0])
-    expect(props.onOpenEvent).toHaveBeenCalledWith('e1', '2026-10-14')
+    expect(props.onOpenEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }), '2026-10-14')
   })
 
   it('says "No events" on an empty day', () => {
@@ -88,5 +88,13 @@ describe('WeekList (narrow, FR-004a)', () => {
     const { container } = renderList()
 
     expect((await axe(container)).violations).toEqual([])
+  })
+
+  it('shows the repeat icon on an occurrence row', () => {
+    const gym = recurringSummary({ start: '2026-10-14T07:00:00-05:00', end: '2026-10-14T08:00:00-05:00', occurrenceDate: '2026-10-14' })
+    renderList({ week: daysView('2026-10-11', 7, { timed: { '2026-10-14': [segment(gym, 420, 60)] } }) })
+
+    const row = within(section('Wednesday, October 14, 2026')).getByRole('button', { name: /^Gym,.*, repeats$/ })
+    expect(row.querySelector('svg.repeat-icon')).not.toBeNull()
   })
 })

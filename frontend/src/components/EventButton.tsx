@@ -1,12 +1,13 @@
 import type { EventSummary } from '../api/types'
 import { describeEvent } from '../lib/describe'
 import { formatTimeShort } from '../lib/format'
+import { RepeatIcon } from './RepeatIcon'
 
 interface EventButtonProps {
   event: EventSummary
   timeZone: string
   tabbable: boolean
-  onOpen: (id: string) => void
+  onOpen: (event: EventSummary) => void
 }
 
 export function EventButton({ event, timeZone, tabbable, onOpen }: EventButtonProps) {
@@ -16,7 +17,7 @@ export function EventButton({ event, timeZone, tabbable, onOpen }: EventButtonPr
       className={event.isAllDay ? 'event-button all-day' : 'event-button'}
       tabIndex={tabbable ? 0 : -1}
       aria-label={describeEvent(event, timeZone)}
-      onClick={() => onOpen(event.id)}
+      onClick={() => onOpen(event)}
     >
       {!event.isAllDay && event.start && (
         <>
@@ -24,6 +25,7 @@ export function EventButton({ event, timeZone, tabbable, onOpen }: EventButtonPr
         </>
       )}
       <span className="event-title">{event.title}</span>
+      {event.isRecurring && <RepeatIcon />}
     </button>
   )
 }

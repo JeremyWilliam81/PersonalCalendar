@@ -2,10 +2,15 @@ import { useEffect, useId, useState } from 'react'
 import { useCalendarApi } from '../api/ApiContext'
 import type { EventDetails } from '../api/types'
 import { describeRange } from '../lib/describe'
+import { localDateInZone } from '../lib/format'
+import { describeRule } from '../lib/recurrence'
 import { Modal } from './Modal'
+import { RepeatIcon } from './RepeatIcon'
 
 interface EventDetailsDialogProps {
   eventId: string
+  /** For an occurrence of a series: its original date (003 research S4). */
+  occurrenceDate?: string | null
   timeZone: string
   onClose: () => void
   onEdit?: (details: EventDetails) => void
@@ -22,9 +27,17 @@ function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
+/** The series' first date, which monthly and yearly summaries take their day from. */
+function seriesFirstDate(details: EventDetails): string {
+  if (details.seriesStartDate) return details.seriesStartDate
+  if (details.seriesStart) return localDateInZone(details.seriesStart, details.recurrence?.timeZone ?? details.timeZone)
+  return details.occurrenceDate ?? details.startDate ?? ''
+}
+
 /** Shows every field of an event; empty optional fields are left out (FR-009). */
 export function EventDetailsDialog({
   eventId,
+  occurrenceDate,
   timeZone,
   onClose,
   onEdit,
@@ -38,7 +51,8 @@ export function EventDetailsDialog({
 
   useEffect(() => {
     let cancelled = false
-    void api.getEvent(eventId, timeZone).then((result) => {
+    const request = occurrenceDate ? api.getEvent(eventId, timeZone, occurrenceDate) : api.getEvent(eventId, timeZone)
+    void request.then((result) => {
       if (cancelled) return
       if (result.kind === 'ok') setState({ kind: 'loaded', details: result.value })
       else setState({ kind: result.kind === 'notFound' ? 'notFound' : 'failed' })
@@ -46,7 +60,7 @@ export function EventDetailsDialog({
     return () => {
       cancelled = true
     }
-  }, [api, eventId, timeZone, reloadKey])
+  }, [api, eventId, occurrenceDate, timeZone, reloadKey])
 
   const details = state.kind === 'loaded' ? state.details : null
   const heading = details?.title ?? (state.kind === 'loading' ? 'Loading event…' : 'Event')
@@ -63,6 +77,15 @@ export function EventDetailsDialog({
         <dl>
           <dt>When</dt>
           <dd>{capitalize(describeRange(details, details.timeZone))}</dd>
+          {details.recurrence && (
+            <>
+              <dt>Repeats</dt>
+              <dd className="repeat-summary-line">
+                <RepeatIcon />
+                {describeRule(details.recurrence, seriesFirstDate(details))}
+              </dd>
+            </>
+          )}
           {details.location && (
             <>
               <dt>Location</dt>

@@ -1,15 +1,16 @@
 import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
-import type { TimedSegment, TimelineDay } from '../api/types'
-import { describeEvent } from '../lib/describe'
+import type { EventSummary, TimedSegment, TimelineDay } from '../api/types'
+import { describeEvent, eventKey } from '../lib/describe'
 import { formatFullDate, formatHourLabel, formatTimeShort, toLocalInputValue } from '../lib/format'
 import { clustersOf, instantAfter, MIN_BLOCK_PX, minutesToPx } from '../lib/timeline'
 import { DayOverflowDialog } from './DayOverflowDialog'
 import { NowLine } from './NowLine'
+import { RepeatIcon } from './RepeatIcon'
 
 interface TimeGridProps {
   days: TimelineDay[]
   timeZone: string
-  onOpenEvent: (id: string, date: string) => void
+  onOpenEvent: (event: EventSummary, date: string) => void
   /** Tapping empty time starts an event at that half-hour, given as a local yyyy-MM-ddTHH:mm (FR-013b). */
   onCreateAt?: (localStart: string) => void
   /** The current time, for the line on today's column (FR-016). */
@@ -121,7 +122,7 @@ export function TimeGrid({ days, timeZone, onOpenEvent, onCreateAt, now }: TimeG
 
             {day.timed.map((segment) => (
               <button
-                key={segment.event.id}
+                key={eventKey(segment.event)}
                 type="button"
                 className="time-block"
                 aria-label={describeEvent(segment.event, timeZone)}
@@ -133,9 +134,10 @@ export function TimeGrid({ days, timeZone, onOpenEvent, onCreateAt, now }: TimeG
                   left: `${(100 * segment.column) / segment.columnCount}%`,
                   width: `${100 / segment.columnCount}%`,
                 }}
-                onClick={() => onOpenEvent(segment.event.id, day.date)}
+                onClick={() => onOpenEvent(segment.event, day.date)}
               >
-                <span className="event-title">{segment.event.title}</span>{' '}
+                <span className="event-title">{segment.event.title}</span>
+                {segment.event.isRecurring && <RepeatIcon />}{' '}
                 {!segment.continuesBefore && segment.event.start && (
                   <span className="event-time">{formatTimeShort(segment.event.start, timeZone)}</span>
                 )}
@@ -171,7 +173,7 @@ export function TimeGrid({ days, timeZone, onOpenEvent, onCreateAt, now }: TimeG
           date={crowded.date}
           events={crowded.segments.map((s) => s.event)}
           timeZone={timeZone}
-          onOpenEvent={(id) => onOpenEvent(id, crowded.date)}
+          onOpenEvent={(event) => onOpenEvent(event, crowded.date)}
           onClose={() => setCrowded(null)}
         />
       )}

@@ -12,7 +12,7 @@ public class DeleteEventTests
     private readonly FakeClock _clock = new(Instant.FromUtc(2026, 9, 29, 15, 0));
     private readonly ZoneLookup _zones = new(DateTimeZoneProviders.Tzdb);
 
-    private DeleteEvent UseCase => new(_repository);
+    private DeleteEvent UseCase => new(_repository, _clock);
 
     private async Task<Guid> CreateAsync()
     {

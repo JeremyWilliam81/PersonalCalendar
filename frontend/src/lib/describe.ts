@@ -1,7 +1,7 @@
 import type { EventSummary } from '../api/types'
 import { formatAllDayRange, formatFullDate, formatTimedRange } from './format'
 
-type Describable = Pick<EventSummary, 'title' | 'isAllDay' | 'start' | 'end' | 'startDate' | 'endDate'>
+type Describable = Pick<EventSummary, 'title' | 'isAllDay' | 'start' | 'end' | 'startDate' | 'endDate' | 'isRecurring'>
 
 /** The full date/time range of an event, as screen readers should hear it (FR-020). */
 export function describeRange(event: Describable, timeZone: string): string {
@@ -12,10 +12,11 @@ export function describeRange(event: Describable, timeZone: string): string {
   return ''
 }
 
-/** "Dentist, Wednesday, October 14, 2026, 9:00 AM to 10:00 AM" */
+/** "Dentist, Wednesday, October 14, 2026, 9:00 AM to 10:00 AM", plus ", repeats" for an occurrence (003 FR-030). */
 export function describeEvent(event: Describable, timeZone: string): string {
   const range = describeRange(event, timeZone)
-  return range ? `${event.title}, ${range}` : event.title
+  const text = range ? `${event.title}, ${range}` : event.title
+  return event.isRecurring ? `${text}, repeats` : text
 }
 
 interface DayDescription {
@@ -31,4 +32,9 @@ export function describeDay(date: string, { isToday = false, eventCount }: DayDe
   if (eventCount !== undefined) parts.push(eventCount === 0 ? 'no events' : eventCount === 1 ? '1 event' : `${eventCount} events`)
   parts.push('open in day view')
   return parts.join(', ')
+}
+
+/** A React key for an event or one occurrence of a series; occurrences share their series id (003 research S4). */
+export function eventKey(event: { id: string; occurrenceDate?: string | null }): string {
+  return `${event.id}:${event.occurrenceDate ?? ''}`
 }

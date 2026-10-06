@@ -3,15 +3,15 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
-import type { DaysView } from '../api/types'
-import { octoberWeek } from '../test/fixtures'
+import type { DaysView, EventSummary } from '../api/types'
+import { allDaySummary, daysView, octoberWeek } from '../test/fixtures'
 import { WeekView } from './WeekView'
 
 interface HarnessProps {
   week?: DaysView
   onMoveDate?: (date: string, leavesPeriod: boolean) => void
   onOpenDay?: (date: string) => void
-  onOpenEvent?: (id: string, date: string) => void
+  onOpenEvent?: (event: EventSummary, date: string) => void
 }
 
 function Harness({ week = octoberWeek(), ...props }: HarnessProps) {
@@ -89,12 +89,24 @@ describe('WeekView (wide)', () => {
 
     await user.click(screen.getByRole('button', { name: /^Dentist,/ }))
 
-    expect(onOpenEvent).toHaveBeenCalledWith('e1', '2026-10-14')
+    expect(onOpenEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }), '2026-10-14')
   })
 
   it('has no axe violations', async () => {
     const { container } = render(<Harness />)
 
     expect((await axe(container)).violations).toEqual([])
+  })
+
+  it('shows the repeat icon on an all-day bar of a series', () => {
+    const event = { ...allDaySummary('s2', 'Class', '2026-10-13', '2026-10-13'), isRecurring: true, occurrenceDate: '2026-10-13' }
+    const week = daysView('2026-10-11', 7, {
+      allDay: { '2026-10-13': [event] },
+      bars: [{ event, startIndex: 2, span: 1, lane: 0, continuesBefore: false, continuesAfter: false }],
+    })
+    render(<Harness week={week} />)
+
+    const bar = screen.getByRole('button', { name: /^Class,.*repeats/ })
+    expect(bar.querySelector('svg.repeat-icon')).not.toBeNull()
   })
 })

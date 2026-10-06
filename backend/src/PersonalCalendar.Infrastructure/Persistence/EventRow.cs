@@ -30,4 +30,20 @@ public sealed class EventRow
     public Instant UpdatedUtc { get; set; }
 
     public int Version { get; set; }
+
+    // Series columns (specs/003-recurring-events/data-model.md). All null for a one-time event.
+
+    public string? RecurrenceRule { get; set; }
+
+    public string? RecurrenceTimeZone { get; set; }
+
+    public LocalDateTime? StartLocal { get; set; }
+
+    public LocalDateTime? EndLocal { get; set; }
+
+    public LocalDate? SeriesFirstDate { get; set; }
+
+    public LocalDate? SeriesLastDate { get; set; }
+
+    public List<OccurrenceExceptionRow> Exceptions { get; set; } = [];
 }

@@ -12,10 +12,10 @@ public class MonthGridTests
     private static readonly IClock Clock = new FakeClock(Instant.FromUtc(2026, 9, 29, 15, 0));
     private static readonly LocalDate Today = new(2026, 9, 29);
 
-    private static CalendarEvent Timed(string title, Instant start, Instant end) =>
-        CalendarEvent.Create(title, null, null, TimedSchedule.Create(start, end).Value!, Chicago, Clock).Value!;
+    private static CalendarItem Timed(string title, Instant start, Instant end) =>
+        Items.OneTime(CalendarEvent.Create(title, null, null, TimedSchedule.Create(start, end).Value!, Chicago, Clock).Value!);
 
-    private static CalendarEvent TimedLocal(string title, DateTimeZone zone, LocalDateTime start, LocalDateTime end) =>
+    private static CalendarItem TimedLocal(string title, DateTimeZone zone, LocalDateTime start, LocalDateTime end) =>
         Timed(title, start.InZoneLeniently(zone).ToInstant(), end.InZoneLeniently(zone).ToInstant());
 
     private static DayCell Day(MonthGridResult grid, LocalDate date) =>
@@ -129,8 +129,8 @@ public class MonthGridTests
         Assert.Equal([new LocalDate(2026, 10, 14)], DaysWith(inChicago, "Call"));
     }
 
-    private static CalendarEvent AllDay(string title, LocalDate start, LocalDate end) =>
-        CalendarEvent.Create(title, null, null, AllDaySchedule.Create(start, end).Value!, Chicago, Clock).Value!;
+    private static CalendarItem AllDay(string title, LocalDate start, LocalDate end) =>
+        Items.OneTime(CalendarEvent.Create(title, null, null, AllDaySchedule.Create(start, end).Value!, Chicago, Clock).Value!);
 
     [Fact]
     public void AllDayEvent_AppearsOnEveryDateInItsInclusiveRange()
@@ -207,5 +207,18 @@ public class MonthGridTests
         var grid = MonthGrid.Build(2026, 11, Chicago, Today, [ev]);
 
         Assert.Equal([new LocalDate(2026, 11, 1)], DaysWith(grid, "Overlap"));
+    }
+
+    [Fact]
+    public void Occurrences_OfOneSeries_ArePlacedOnTheirOwnDays()
+    {
+        var id = EventId.New();
+        var wednesday = Items.Of(id, "Gym", AllDaySchedule.Create(new(2026, 10, 21), new(2026, 10, 21)).Value!, new LocalDate(2026, 10, 21));
+        var friday = Items.Of(id, "Gym", AllDaySchedule.Create(new(2026, 10, 23), new(2026, 10, 23)).Value!, new LocalDate(2026, 10, 23));
+
+        var grid = MonthGrid.Build(2026, 10, Chicago, Today, [friday, wednesday]);
+
+        Assert.Equal([new LocalDate(2026, 10, 21), new LocalDate(2026, 10, 23)], DaysWith(grid, "Gym"));
+        Assert.Equal(new LocalDate(2026, 10, 23), Day(grid, new LocalDate(2026, 10, 23)).Events.Single().Occurrence!.OriginalDate);
     }
 }

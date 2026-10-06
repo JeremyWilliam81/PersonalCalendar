@@ -7,7 +7,33 @@ export type OffsetDateTimeString = string
 /** yyyy-MM-ddTHH:mm wall-clock time; always sent together with a timeZone. */
 export type LocalDateTimeString = string
 
+// Recurring events: specs/003-recurring-events/contracts/http-api.md.
+
+export type Weekday = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
+
+export type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly'
+
+export type MonthlyPattern = { type: 'dayOfMonth' } | { type: 'weekdayPosition'; ordinal: 1 | 2 | 3 | 4 | -1 }
+
+export type RepeatEnd = { type: 'never' } | { type: 'until'; until: DateString } | { type: 'count'; count: number }
+
+export interface Recurrence {
+  frequency: Frequency
+  interval: number
+  /** Weekly only. */
+  weekdays: Weekday[]
+  /** Monthly only. */
+  monthly: MonthlyPattern | null
+  end: RepeatEnd
+  /** In responses: the zone the series repeats in. */
+  timeZone?: string
+}
+
+/** Where a change to one occurrence of a series applies (FR-015). */
+export type EditScope = 'this' | 'following' | 'all'
+
 export interface EventSummary {
+  /** For an occurrence, the series id. */
   id: string
   title: string
   isAllDay: boolean
@@ -15,6 +41,9 @@ export interface EventSummary {
   end?: OffsetDateTimeString | null
   startDate?: DateString | null
   endDate?: DateString | null
+  isRecurring?: boolean
+  /** The occurrence's original date; with `id` it identifies the occurrence. */
+  occurrenceDate?: DateString | null
 }
 
 export interface DayCell {
@@ -43,7 +72,15 @@ export interface EventDetails {
   end: OffsetDateTimeString | null
   startDate: DateString | null
   endDate: DateString | null
+  /** For a series: covers the series and all its changed or deleted occurrences. */
   version: number
+  recurrence?: Recurrence | null
+  occurrenceDate?: DateString | null
+  /** The first occurrence's start (timed) or start date (all-day). */
+  seriesStart?: OffsetDateTimeString | null
+  seriesStartDate?: DateString | null
+  isException?: boolean
+  exceptionCount?: number
 }
 
 export interface EventInput {
@@ -58,6 +95,8 @@ export interface EventInput {
   endDate: DateString | null
   acceptAdjustedTimes: boolean
   version?: number
+  /** null or absent: does not repeat. */
+  recurrence?: Recurrence | null
 }
 
 export type FieldErrors = Record<string, string[]>

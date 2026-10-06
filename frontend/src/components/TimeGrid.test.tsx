@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
-import { CHICAGO, dentist, fallBackDay, october14, segment, standup, timelineDay } from '../test/fixtures'
+import { CHICAGO, dentist, fallBackDay, october14, recurringSummary, segment, standup, timelineDay } from '../test/fixtures'
 import { TimeGrid } from './TimeGrid'
 
 function block(name: RegExp) {
@@ -43,7 +43,7 @@ describe('TimeGrid', () => {
 
     await user.click(block(/^Dentist,/))
 
-    expect(onOpenEvent).toHaveBeenCalledWith('e1', '2026-10-14')
+    expect(onOpenEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }), '2026-10-14')
   })
 
   it('labels a 25-hour fall-back day with the 1 AM hour twice and a taller column', () => {
@@ -136,5 +136,17 @@ describe('TimeGrid empty-time taps', () => {
     await user.click(screen.getByRole('button', { name: /^Dentist,/ }))
 
     expect(onCreateAt).not.toHaveBeenCalled()
+  })
+
+  it('shows the repeat icon on an occurrence block and passes the occurrence when tapped', async () => {
+    const user = userEvent.setup()
+    const onOpenEvent = vi.fn()
+    const gym = recurringSummary({ start: '2026-10-14T07:00:00-05:00', end: '2026-10-14T08:00:00-05:00', occurrenceDate: '2026-10-14' })
+    render(<TimeGrid days={[timelineDay('2026-10-14', { timed: [segment(gym, 420, 60)] })]} timeZone={CHICAGO} onOpenEvent={onOpenEvent} />)
+
+    const gymBlock = block(/^Gym,.*, repeats$/)
+    expect(gymBlock.querySelector('svg.repeat-icon')).not.toBeNull()
+    await user.click(gymBlock)
+    expect(onOpenEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 's1', occurrenceDate: '2026-10-14' }), '2026-10-14')
   })
 })

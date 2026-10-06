@@ -5,7 +5,7 @@ import { axe } from 'vitest-axe'
 import { ApiContext } from '../api/ApiContext'
 import type { CalendarApi } from '../api/client'
 import type { EventDetails } from '../api/types'
-import { CHICAGO, dentistDetails, stubApi } from '../test/fixtures'
+import { CHICAGO, dentistDetails, recurringDetails, stubApi } from '../test/fixtures'
 import { EventFormDialog } from './EventFormDialog'
 import { LiveRegionProvider } from './LiveRegion'
 
@@ -85,6 +85,7 @@ describe('EventFormDialog (create)', () => {
       startDate: null,
       endDate: null,
       acceptAdjustedTimes: false,
+      recurrence: null,
     })
   })
 
@@ -349,3 +350,240 @@ describe('EventFormDialog (edit)', () => {
     expect(api.updateEvent).not.toHaveBeenCalled()
   })
 })
+
+describe('EventFormDialog (repeat, US1)', () => {
+  it('creates a weekly series on the chosen weekdays', async () => {
+    const user = userEvent.setup()
+    const api = stubApi()
+    renderForm(api)
+
+    await user.type(screen.getByLabelText('Title'), 'Gym')
+    await user.click(screen.getByRole('radio', { name: 'Weekly' }))
+    await user.click(screen.getByRole('button', { name: 'Monday' }))
+    await user.click(screen.getByRole('button', { name: 'Friday' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(api.createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Gym',
+        recurrence: {
+          frequency: 'weekly',
+          interval: 1,
+          weekdays: ['monday', 'wednesday', 'friday'],
+          monthly: null,
+          end: { type: 'never' },
+        },
+      }),
+    )
+  })
+
+  it('sends no recurrence for an event that does not repeat', async () => {
+    const user = userEvent.setup()
+    const api = stubApi()
+    renderForm(api)
+
+    await user.type(screen.getByLabelText('Title'), 'Call')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(api.createEvent).toHaveBeenCalledWith(expect.objectContaining({ recurrence: null }))
+  })
+
+  it('turns a one-time event into a daily series without asking for a scope', async () => {
+    const user = userEvent.setup()
+    const api = stubApi()
+    renderForm(api, { event: dentistDetails })
+
+    await user.click(screen.getByRole('radio', { name: 'Daily' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(api.updateEvent).toHaveBeenCalledWith(
+      'e1',
+      expect.objectContaining({ version: 1, recurrence: expect.objectContaining({ frequency: 'daily' }) }),
+    )
+    expect(screen.queryByRole('dialog', { name: /recurring event/ })).not.toBeInTheDocument()
+  })
+
+  it('shows server rule errors next to the repeat control', async () => {
+    const user = userEvent.setup()
+    const api = stubApi({
+      createEvent: vi.fn(async () => ({
+        kind: 'validation' as const,
+        errors: { 'recurrence.interval': ['recurrence.interval.outOfRange'] },
+      })),
+    })
+    renderForm(api)
+    await user.type(screen.getByLabelText('Title'), 'Gym')
+    await user.click(screen.getByRole('radio', { name: 'Daily' }))
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('spinbutton', { name: 'Repeat every' })).toHaveAccessibleDescription(
+      'Enter a number from 1 to 99.',
+    )
+  })
+
+  it('asks before discarding unsaved repeat changes', async () => {
+    const user = userEvent.setup()
+    const { onClose } = renderForm(stubApi(), { event: dentistDetails })
+
+    await user.click(screen.getByRole('radio', { name: 'Yearly' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByRole('dialog', { name: 'Discard your changes?' })).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+})
+
+describe('EventFormDialog (series edits, US3)', () => {
+  const scopeDialog = () => screen.queryByRole('dialog', { name: 'Change recurring event' })
+  const choiceNames = () =>
+    within(scopeDialog()!)
+      .getAllByRole('button')
+      .map((b) => b.textContent)
+      .filter((name) => name !== 'Cancel')
+
+  it('opens straight away with the occurrence’s date and time and the series rule', () => {
+    renderForm(stubApi(), { event: recurringDetails() })
+
+    expect(screen.getByLabelText('Start')).toHaveValue('2026-10-21T07:00')
+    expect(screen.getByRole('radio', { name: 'Weekly' })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Monday' })).toHaveAttribute('aria-pressed', 'true')
+    expect(scopeDialog()).not.toBeInTheDocument()
+  })
+
+  it('asks where a time change applies and saves with that scope', async () => {
+    const user = userEvent.setup()
+    const api = stubApi({ updateEvent: vi.fn(async () => ({ kind: 'ok' as const, value: recurringDetails({ version: 5 }) })) })
+    renderForm(api, { event: recurringDetails() })
+
+    await setValue(user, 'Start', '2026-10-21T18:00')
+    await setValue(user, 'End', '2026-10-21T19:00')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(choiceNames()).toEqual(['This event', 'This and following events', 'All events'])
+    await user.click(screen.getByRole('button', { name: 'This event' }))
+
+    expect(api.updateEvent).toHaveBeenCalledWith(
+      's1',
+      expect.objectContaining({ start: '2026-10-21T18:00', version: 4, recurrence: expect.objectContaining({ frequency: 'weekly' }) }),
+      { occurrence: '2026-10-21', scope: 'this' },
+    )
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Changed this event.'))
+  })
+
+  it('offers only "This event" when the date changed', async () => {
+    const user = userEvent.setup()
+    renderForm(stubApi(), { event: recurringDetails() })
+
+    await setValue(user, 'Start', '2026-10-22T07:00')
+    await setValue(user, 'End', '2026-10-22T08:00')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(choiceNames()).toEqual(['This event'])
+  })
+
+  it('hides "This event" when the repeat options changed', async () => {
+    const user = userEvent.setup()
+    renderForm(stubApi(), { event: recurringDetails() })
+
+    await user.click(screen.getByRole('button', { name: 'Tuesday' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(choiceNames()).toEqual(['This and following events', 'All events'])
+  })
+
+  it('refuses a date change together with a repeat change, without asking (FR-016a)', async () => {
+    const user = userEvent.setup()
+    const api = stubApi()
+    renderForm(api, { event: recurringDetails() })
+
+    await setValue(user, 'Start', '2026-10-22T07:00')
+    await setValue(user, 'End', '2026-10-22T08:00')
+    await user.click(screen.getByRole('button', { name: 'Tuesday' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(scopeDialog()).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Start')).toHaveAccessibleDescription(
+      'A new date applies only to this event, but repeat changes apply to the series. Undo one of them.',
+    )
+    expect(api.updateEvent).not.toHaveBeenCalled()
+  })
+
+  it('warns before a rule change discards single-event changes', async () => {
+    const user = userEvent.setup()
+    const api = stubApi()
+    renderForm(api, { event: recurringDetails({ exceptionCount: 2 }) })
+
+    await user.click(screen.getByRole('button', { name: 'Tuesday' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'All events' }))
+
+    expect(screen.getByText('Changes you made to single events in this series will be lost.')).toBeInTheDocument()
+    expect(api.updateEvent).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }))
+    expect(api.updateEvent).toHaveBeenCalledWith('s1', expect.anything(), { occurrence: '2026-10-21', scope: 'all' })
+  })
+
+  it('does not warn about a title-only change to all events', async () => {
+    const user = userEvent.setup()
+    const api = stubApi()
+    renderForm(api, { event: recurringDetails({ exceptionCount: 2 }) })
+
+    await setValue(user, 'Title', 'Swim')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'All events' }))
+
+    expect(api.updateEvent).toHaveBeenCalledWith('s1', expect.objectContaining({ title: 'Swim' }), { occurrence: '2026-10-21', scope: 'all' })
+  })
+
+  it('returns to the form with the edits kept on Cancel', async () => {
+    const user = userEvent.setup()
+    const api = stubApi()
+    renderForm(api, { event: recurringDetails() })
+
+    await setValue(user, 'Title', 'Swim')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(within(scopeDialog()!).getByRole('button', { name: 'Cancel' }))
+
+    expect(scopeDialog()).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Title')).toHaveValue('Swim')
+    expect(api.updateEvent).not.toHaveBeenCalled()
+  })
+
+  it('shows a scope error from the server on the form', async () => {
+    const user = userEvent.setup()
+    const api = stubApi({
+      updateEvent: vi.fn(async () => ({ kind: 'validation' as const, errors: { scope: ['scope.dateChangeRequiresThis'] } })),
+    })
+    renderForm(api, { event: recurringDetails() })
+
+    await setValue(user, 'Title', 'Swim')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'All events' }))
+
+    expect(await screen.findByText('A new date can only apply to this event.')).toBeInTheDocument()
+  })
+})
+
+describe('EventFormDialog (stop repeating, US5)', () => {
+  it.each([
+    ['All events', 'all', 'All events except the first will be removed.'],
+    ['This and following events', 'following', 'This and following events will be removed, and this one kept as a single event.'],
+  ] as const)('warns before %s stop repeating, then sends no rule', async (choice, scope, warning) => {
+    const user = userEvent.setup()
+    const api = stubApi()
+    renderForm(api, { event: recurringDetails() })
+
+    await user.click(screen.getByRole('radio', { name: 'Does not repeat' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Change recurring event' })
+    expect(within(dialog).queryByRole('button', { name: 'This event' })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: choice }))
+    expect(screen.getByText(warning)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Save anyway' }))
+    expect(api.updateEvent).toHaveBeenCalledWith('s1', expect.objectContaining({ recurrence: null }), { occurrence: '2026-10-21', scope })
+  })
+})
+

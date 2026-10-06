@@ -15,4 +15,6 @@ public sealed record EventSummary(
     OffsetDateTime? Start,
     OffsetDateTime? End,
     LocalDate? StartDate,
-    LocalDate? EndDate);
+    LocalDate? EndDate,
+    bool IsRecurring,
+    LocalDate? OccurrenceDate);

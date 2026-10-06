@@ -17,10 +17,10 @@ public static class MonthGrid
     }
 
     public static MonthGridResult Build(
-        int year, int month, DateTimeZone zone, LocalDate today, IEnumerable<CalendarEvent> events)
+        int year, int month, DateTimeZone zone, LocalDate today, IEnumerable<CalendarItem> events)
     {
         var (first, last) = GridRange(year, month);
-        var eventsByDay = new Dictionary<LocalDate, List<CalendarEvent>>();
+        var eventsByDay = new Dictionary<LocalDate, List<CalendarItem>>();
 
         foreach (var calendarEvent in events)
         {

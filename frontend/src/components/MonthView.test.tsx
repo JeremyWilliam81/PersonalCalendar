@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
-import type { MonthView as MonthViewData } from '../api/types'
-import { allDaySummary, octoberMonth, timedSummary } from '../test/fixtures'
+import type { EventSummary, MonthView as MonthViewData } from '../api/types'
+import { allDaySummary, octoberMonth, recurringSummary, timedSummary } from '../test/fixtures'
 import { setNarrowViewport } from '../test/viewport'
 import { MonthView } from './MonthView'
 
@@ -14,7 +14,7 @@ interface HarnessProps {
   month?: MonthViewData
   onMoveFocus?: (date: string, changeMonth: boolean) => void
   onOpenDay?: (date: string) => void
-  onOpenEvent?: (id: string, date: string) => void
+  onOpenEvent?: (event: EventSummary, date: string) => void
   maxVisible?: number
 }
 
@@ -139,7 +139,7 @@ describe('MonthView', () => {
     expect(button).toHaveTextContent('Dentist')
     await user.click(button)
 
-    expect(onOpenEvent).toHaveBeenCalledWith('e1', '2026-10-14')
+    expect(onOpenEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }), '2026-10-14')
   })
 
   it('lets Tab move from the focused day into its event buttons', async () => {
@@ -234,5 +234,25 @@ describe('MonthView on a phone-sized screen', () => {
     const { container } = render(<Harness month={octoberMonth({ '2026-10-14': five })} />)
 
     expect((await axe(container)).violations).toEqual([])
+  })
+
+  it('marks an occurrence of a series with the repeat icon and says "repeats" (003 FR-011)', () => {
+    setNarrowViewport(false)
+    const gym = recurringSummary({ start: '2026-10-14T07:00:00-05:00', end: '2026-10-14T08:00:00-05:00', occurrenceDate: '2026-10-14' })
+    render(<Harness month={octoberMonth({ '2026-10-14': [gym, dentist] })} />)
+
+    const label = screen.getByRole('button', { name: /^Gym,/ })
+    expect(label).toHaveAccessibleName('Gym, Wednesday, October 14, 2026, 7:00 AM to 8:00 AM, repeats')
+    expect(label.querySelector('svg.repeat-icon')).not.toBeNull()
+    expect(screen.getByRole('button', { name: /^Dentist,/ }).querySelector('svg.repeat-icon')).toBeNull()
+  })
+
+  it('counts occurrences in the phone markers without showing the icon (003 US2 scenario 4)', () => {
+    setNarrowViewport(true)
+    const gym = recurringSummary({ occurrenceDate: '2026-10-14' })
+    const { container } = render(<Harness month={octoberMonth({ '2026-10-14': [gym, dentist] })} />)
+
+    expect(cell('Wednesday, October 14, 2026, 2 events')).toBeInTheDocument()
+    expect(container.querySelector('svg.repeat-icon')).toBeNull()
   })
 })

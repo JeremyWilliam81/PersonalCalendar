@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiContext } from '../api/ApiContext'
 import type { CalendarApi } from '../api/client'
-import { CHICAGO, octoberMonth, stubApi, timedSummary } from '../test/fixtures'
+import { CHICAGO, octoberMonth, recurringDetails, recurringSummary, stubApi, timedSummary } from '../test/fixtures'
 import { CalendarScreen } from './CalendarScreen'
 import { LiveRegionProvider } from './LiveRegion'
 
@@ -74,5 +74,55 @@ describe('Deleting an event (US3)', () => {
 
     expect(await screen.findByText(/This event was changed in another window\./, { selector: 'p' })).toBeInTheDocument()
     expect(screen.getByRole('dialog', { name: 'Dentist' })).toBeInTheDocument()
+  })
+})
+
+describe('Deleting an occurrence of a series (003 US4)', () => {
+  const gym = recurringSummary({ start: '2026-10-14T07:00:00-05:00', end: '2026-10-14T08:00:00-05:00', occurrenceDate: '2026-10-14' })
+
+  function seriesApi() {
+    return stubApi({
+      getMonth: vi.fn(async () => ({ kind: 'ok' as const, value: octoberMonth({ '2026-10-14': [gym] }) })),
+      getEvent: vi.fn(async () => ({
+        kind: 'ok' as const,
+        value: recurringDetails({ occurrenceDate: '2026-10-14', start: gym.start!, end: gym.end! }),
+      })),
+    })
+  }
+
+  async function openScopeChoice(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByRole('button', { name: /^Gym,/ }))
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+    return screen.getByRole('dialog', { name: 'Delete recurring event' })
+  }
+
+  it.each([
+    ['This event', 'this', 'Deleted this event.'],
+    ['This and following events', 'following', 'Deleted this and following events.'],
+    ['All events', 'all', 'Deleted all events.'],
+  ] as const)('%s deletes with that scope and announces it', async (choice, scope, announcement) => {
+    const user = userEvent.setup()
+    const api = seriesApi()
+    renderScreen(api)
+
+    const dialog = await openScopeChoice(user)
+    expect(screen.queryByRole('dialog', { name: 'Delete "Gym"?' })).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: choice }))
+
+    expect(api.deleteEvent).toHaveBeenCalledWith('s1', 4, { occurrence: '2026-10-14', scope })
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(announcement))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('deletes nothing on Cancel', async () => {
+    const user = userEvent.setup()
+    const api = seriesApi()
+    renderScreen(api)
+
+    const dialog = await openScopeChoice(user)
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    expect(api.deleteEvent).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: 'Gym' })).toBeInTheDocument()
   })
 })

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react'
-import type { DaysView } from '../api/types'
+import type { DaysView, EventSummary } from '../api/types'
 import { addDays } from '../lib/dates'
 import { describeDay } from '../lib/describe'
 import { formatWeekdayName } from '../lib/format'
@@ -14,7 +14,7 @@ interface WeekViewProps {
   /** `leavesPeriod` is true when the date is outside this week, so the neighboring week must load. */
   onMoveDate: (date: string, leavesPeriod: boolean) => void
   onOpenDay: (date: string) => void
-  onOpenEvent: (id: string, date: string) => void
+  onOpenEvent: (event: EventSummary, date: string) => void
   onCreateAt?: (localStart: string) => void
   now?: Date
 }

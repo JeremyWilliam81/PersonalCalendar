@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import type { EventSummary } from '../api/types'
+import { eventKey } from '../lib/describe'
 import { formatFullDate } from '../lib/format'
 import { EventButton } from './EventButton'
 import { Modal } from './Modal'
@@ -8,7 +9,7 @@ interface DayOverflowDialogProps {
   date: string
   events: EventSummary[]
   timeZone: string
-  onOpenEvent: (id: string) => void
+  onOpenEvent: (event: EventSummary) => void
   onClose: () => void
 }
 
@@ -21,14 +22,14 @@ export function DayOverflowDialog({ date, events, timeZone, onOpenEvent, onClose
       <h2 id={titleId}>{formatFullDate(date)}</h2>
       <ul className="overflow-list">
         {events.map((event) => (
-          <li key={event.id}>
+          <li key={eventKey(event)}>
             <EventButton
               event={event}
               timeZone={timeZone}
               tabbable
-              onOpen={(id) => {
+              onOpen={(opened) => {
                 onClose()
-                onOpenEvent(id)
+                onOpenEvent(opened)
               }}
             />
           </li>

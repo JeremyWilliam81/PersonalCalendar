@@ -1,5 +1,6 @@
 using PersonalCalendar.Api.Http;
 using PersonalCalendar.Application.Events;
+using PersonalCalendar.Domain.Validation;
 
 namespace PersonalCalendar.Api.Endpoints;
 
@@ -18,22 +19,38 @@ public static class EventEndpoints
             return ProblemResults.From(result, details => Results.Created($"/api/events/{details.Id}", details));
         });
 
-        events.MapGet("/{id:guid}", async (Guid id, string? timeZone, GetEventDetails useCase, CancellationToken cancellationToken) =>
-            ProblemResults.From(await useCase.HandleAsync(id, timeZone, cancellationToken), Results.Ok));
-
-        events.MapPut("/{id:guid}", async (Guid id, EventRequest request, UpdateEvent useCase, CancellationToken cancellationToken) =>
+        events.MapGet("/{id:guid}", async (
+            Guid id, string? timeZone, string? occurrence, GetEventDetails useCase, CancellationToken cancellationToken) =>
         {
-            var (input, errors) = request.ToInput();
-            if (input is null) return ProblemResults.Validation(errors);
+            if (!LocalValues.TryParseLocalDate(occurrence, out var occurrenceDate))
+            {
+                return ProblemResults.Validation("occurrence", ErrorCodes.OccurrenceInvalid);
+            }
 
-            return ProblemResults.From(await useCase.HandleAsync(id, input, cancellationToken), Results.Ok);
+            return ProblemResults.From(await useCase.HandleAsync(id, timeZone, occurrenceDate, cancellationToken), Results.Ok);
         });
 
-        events.MapDelete("/{id:guid}", async (Guid id, int? version, DeleteEvent useCase, CancellationToken cancellationToken) =>
+        events.MapPut("/{id:guid}", async (
+            Guid id, string? occurrence, string? scope, EventRequest request, UpdateEvent useCase, CancellationToken cancellationToken) =>
         {
-            if (version is null) return ProblemResults.Validation("version", "version.required");
+            var (target, targetErrors) = SeriesTarget.Parse(occurrence, scope);
+            var (input, errors) = request.ToInput();
+            errors.AddRange(targetErrors);
+            if (input is null || !errors.IsValid) return ProblemResults.Validation(errors);
 
-            return ProblemResults.From(await useCase.HandleAsync(id, version.Value, cancellationToken), _ => Results.NoContent());
+            return ProblemResults.From(await useCase.HandleAsync(id, input, target.Occurrence, target.Scope, cancellationToken), Results.Ok);
+        });
+
+        events.MapDelete("/{id:guid}", async (
+            Guid id, int? version, string? occurrence, string? scope, DeleteEvent useCase, CancellationToken cancellationToken) =>
+        {
+            var (target, errors) = SeriesTarget.Parse(occurrence, scope);
+            if (version is null) errors.Add("version", "version.required");
+            if (!errors.IsValid) return ProblemResults.Validation(errors);
+
+            return ProblemResults.From(
+                await useCase.HandleAsync(id, version!.Value, target.Occurrence, target.Scope, cancellationToken),
+                _ => Results.NoContent());
         });
 
         return app;

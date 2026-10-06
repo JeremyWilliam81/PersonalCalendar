@@ -16,7 +16,8 @@ public sealed record EventRequest(
     string? StartDate,
     string? EndDate,
     bool AcceptAdjustedTimes,
-    int? Version)
+    int? Version,
+    RecurrenceRequest? Recurrence = null)
 {
     /// <summary>Parses the local values. Fields that don't apply to the event type are ignored.</summary>
     public (EventInput? Input, ValidationResult Errors) ToInput()
@@ -36,9 +37,10 @@ public sealed record EventRequest(
             if (!LocalValues.TryParseLocalDateTime(End, out end)) errors.Add("end", "end.invalid");
         }
 
+        var recurrence = Recurrence?.ToInput(errors);
         if (!errors.IsValid) return (null, errors);
 
         return (new EventInput(
-            Title, Location, Notes, IsAllDay, TimeZone, start, end, startDate, endDate, AcceptAdjustedTimes, Version), errors);
+            Title, Location, Notes, IsAllDay, TimeZone, start, end, startDate, endDate, AcceptAdjustedTimes, Version, recurrence), errors);
     }
 }

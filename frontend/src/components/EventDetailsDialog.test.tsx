@@ -6,7 +6,7 @@ import { axe } from 'vitest-axe'
 import { ApiContext } from '../api/ApiContext'
 import type { CalendarApi } from '../api/client'
 import type { EventDetails } from '../api/types'
-import { CHICAGO, dentistDetails, stubApi } from '../test/fixtures'
+import { CHICAGO, dentistDetails, recurringDetails, stubApi } from '../test/fixtures'
 import { EventDetailsDialog } from './EventDetailsDialog'
 
 function renderDetails(
@@ -108,5 +108,28 @@ describe('EventDetailsDialog', () => {
     await screen.findByRole('heading', { name: 'Dentist' })
 
     expect((await axe(container)).violations).toEqual([])
+  })
+
+  it('shows an occurrence with its own date and the repeat summary (003 US2)', async () => {
+    const api = stubApi({ getEvent: vi.fn(async () => ({ kind: 'ok' as const, value: recurringDetails() })) })
+    const { container } = render(
+      <ApiContext.Provider value={api}>
+        <EventDetailsDialog eventId="s1" occurrenceDate="2026-10-21" timeZone={CHICAGO} onClose={vi.fn()} />
+      </ApiContext.Provider>,
+    )
+
+    expect(await screen.findByText('Wednesday, October 21, 2026, 7:00 AM to 8:00 AM')).toBeInTheDocument()
+    expect(api.getEvent).toHaveBeenCalledWith('s1', CHICAGO, '2026-10-21')
+    expect(screen.getByText('Weekly on Monday, Wednesday, and Friday')).toBeInTheDocument()
+    expect(container.querySelector('svg.repeat-icon')).not.toBeNull()
+    expect((await axe(container)).violations).toEqual([])
+  })
+
+  it('shows no repeat summary for a one-time event', async () => {
+    renderDetails(stubApi())
+
+    await screen.findByRole('heading', { name: 'Dentist' })
+    expect(screen.queryByText(/^Repeats$/)).not.toBeInTheDocument()
+    expect(document.querySelector('svg.repeat-icon')).toBeNull()
   })
 })
