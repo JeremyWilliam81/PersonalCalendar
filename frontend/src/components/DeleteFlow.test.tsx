@@ -13,7 +13,7 @@ function renderScreen(api: CalendarApi) {
   return render(
     <ApiContext.Provider value={api}>
       <LiveRegionProvider>
-        <CalendarScreen timeZone={CHICAGO} />
+        <CalendarScreen timeZone={CHICAGO} today="2026-10-14" />
       </LiveRegionProvider>
     </ApiContext.Provider>,
   )
@@ -58,7 +58,7 @@ describe('Deleting an event (US3)', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('button', { name: /^Dentist,/ })).not.toBeInTheDocument())
     expect(getMonth).toHaveBeenCalledTimes(2)
-    await waitFor(() => expect(screen.getByRole('gridcell', { name: 'Wednesday, October 14, 2026' })).toHaveFocus())
+    await waitFor(() => expect(screen.getByRole('gridcell', { name: 'Wednesday, October 14, 2026, open in day view' })).toHaveFocus())
   })
 
   it('shows the conflict message when the event changed elsewhere', async () => {

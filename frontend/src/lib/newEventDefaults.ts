@@ -17,3 +17,12 @@ export function newEventDefaults(day: string, now: Date): { start: string; end: 
     end: `${endDay}T${pad(endHour)}:00`,
   }
 }
+
+/** A one-hour event starting at a wall-clock time (yyyy-MM-ddTHH:mm). Plain string arithmetic, no zones. */
+export function newEventAt(localStart: string): { start: string; end: string } {
+  const day = localStart.slice(0, 10)
+  const [hour, minute] = localStart.slice(11, 16).split(':').map(Number)
+  const endHour = hour + 1
+  const endDay = endHour >= 24 ? addDays(day, 1) : day
+  return { start: localStart, end: `${endDay}T${pad(endHour % 24)}:${pad(minute)}` }
+}

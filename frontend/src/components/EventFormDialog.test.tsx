@@ -13,7 +13,12 @@ const NOW = new Date(2026, 9, 14, 14, 20) // 14:20 local (TZ fixed to America/Ch
 
 function renderForm(
   api: CalendarApi,
-  props: { onSaved?: (details: EventDetails) => void; onClose?: () => void; event?: EventDetails } = {},
+  props: {
+    onSaved?: (details: EventDetails) => void
+    onClose?: () => void
+    event?: EventDetails
+    initialTimes?: { start: string; end: string }
+  } = {},
 ) {
   const onSaved = props.onSaved ?? vi.fn()
   const onClose = props.onClose ?? vi.fn()
@@ -25,6 +30,7 @@ function renderForm(
           timeZone={CHICAGO}
           now={NOW}
           event={props.event}
+          initialTimes={props.initialTimes}
           onSaved={onSaved}
           onClose={onClose}
         />
@@ -50,6 +56,13 @@ describe('EventFormDialog (create)', () => {
     expect(screen.getByLabelText('End')).toHaveValue('2026-10-14T16:00')
     expect(screen.getByLabelText('Location')).toHaveValue('')
     expect(screen.getByLabelText('Notes')).toHaveValue('')
+  })
+
+  it('uses the times of a tapped slot instead of the defaults (FR-013b)', () => {
+    renderForm(stubApi(), { initialTimes: { start: '2026-10-14T14:00', end: '2026-10-14T15:00' } })
+
+    expect(screen.getByLabelText('Start')).toHaveValue('2026-10-14T14:00')
+    expect(screen.getByLabelText('End')).toHaveValue('2026-10-14T15:00')
   })
 
   it('sends the input with the device time zone', async () => {

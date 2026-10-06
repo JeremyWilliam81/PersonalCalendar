@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 import type { MonthView as MonthViewData } from '../api/types'
 import { allDaySummary, octoberMonth, timedSummary } from '../test/fixtures'
+import { setNarrowViewport } from '../test/viewport'
 import { MonthView } from './MonthView'
 
 const dentist = timedSummary('e1', 'Dentist', '2026-10-14T09:00:00-05:00', '2026-10-14T10:00:00-05:00')
@@ -12,7 +13,7 @@ const dentist = timedSummary('e1', 'Dentist', '2026-10-14T09:00:00-05:00', '2026
 interface HarnessProps {
   month?: MonthViewData
   onMoveFocus?: (date: string, changeMonth: boolean) => void
-  onCreate?: (date: string) => void
+  onOpenDay?: (date: string) => void
   onOpenEvent?: (id: string, date: string) => void
   maxVisible?: number
 }
@@ -21,25 +22,29 @@ interface HarnessProps {
 function Harness({ month = octoberMonth({ '2026-10-14': [dentist] }), ...props }: HarnessProps) {
   const [focusedDate, setFocusedDate] = useState('2026-10-14')
   return (
-    <MonthView
-      month={month}
-      focusedDate={focusedDate}
-      onMoveFocus={(date, changeMonth) => {
-        props.onMoveFocus?.(date, changeMonth)
-        if (!changeMonth) setFocusedDate(date)
-      }}
-      onPreviousMonth={vi.fn()}
-      onNextMonth={vi.fn()}
-      onToday={vi.fn()}
-      onCreate={props.onCreate ?? vi.fn()}
-      onOpenEvent={props.onOpenEvent ?? vi.fn()}
-      maxVisible={props.maxVisible}
-    />
+    <>
+      <h2 id="period-title">October 2026</h2>
+      <MonthView
+        month={month}
+        focusedDate={focusedDate}
+        titleId="period-title"
+        onMoveFocus={(date, changeMonth) => {
+          props.onMoveFocus?.(date, changeMonth)
+          if (!changeMonth) setFocusedDate(date)
+        }}
+        onOpenDay={props.onOpenDay ?? vi.fn()}
+        onOpenEvent={props.onOpenEvent ?? vi.fn()}
+        maxVisible={props.maxVisible}
+      />
+    </>
   )
 }
 
 function cell(name: string) {
-  return screen.getByRole('gridcell', { name })
+  // Day cells read the full date, "today" where it applies, and what tapping does (FR-013).
+  return screen.getByRole('gridcell', {
+    name: (n) => n === `${name}, open in day view` || n === `${name}, today, open in day view`,
+  })
 }
 
 describe('MonthView', () => {
@@ -51,20 +56,12 @@ describe('MonthView', () => {
     expect(headers).toEqual(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'])
   })
 
-  it('has named month navigation buttons', () => {
-    render(<Harness />)
-
-    expect(screen.getByRole('button', { name: 'Previous month' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Next month' })).toBeInTheDocument()
-  })
-
   it('makes exactly one day cell tabbable (roving tabindex)', () => {
     render(<Harness />)
 
     const tabbable = screen.getAllByRole('gridcell').filter((c) => c.tabIndex === 0)
     expect(tabbable).toHaveLength(1)
-    expect(tabbable[0]).toHaveAccessibleName('Wednesday, October 14, 2026')
+    expect(tabbable[0]).toHaveAccessibleName('Wednesday, October 14, 2026, open in day view')
   })
 
   it('moves focus with arrow, Home and End keys', async () => {
@@ -100,16 +97,36 @@ describe('MonthView', () => {
     expect(onMoveFocus).toHaveBeenLastCalledWith('2026-11-07', true)
   })
 
-  it('starts creating an event on the focused day with Enter or Space', async () => {
+  it('opens the focused day in the day view with Enter or Space', async () => {
     const user = userEvent.setup()
-    const onCreate = vi.fn()
-    render(<Harness onCreate={onCreate} />)
+    const onOpenDay = vi.fn()
+    render(<Harness onOpenDay={onOpenDay} />)
     cell('Wednesday, October 14, 2026').focus()
 
     await user.keyboard('{Enter}')
-    expect(onCreate).toHaveBeenLastCalledWith('2026-10-14')
+    expect(onOpenDay).toHaveBeenLastCalledWith('2026-10-14')
     await user.keyboard('{ArrowRight} ')
-    expect(onCreate).toHaveBeenLastCalledWith('2026-10-15')
+    expect(onOpenDay).toHaveBeenLastCalledWith('2026-10-15')
+  })
+
+  it('opens a day when its number or empty space is tapped, but not when one of its events is (FR-013)', async () => {
+    const user = userEvent.setup()
+    const onOpenDay = vi.fn()
+    const onOpenEvent = vi.fn()
+    render(<Harness onOpenDay={onOpenDay} onOpenEvent={onOpenEvent} />)
+
+    await user.click(cell('Wednesday, October 14, 2026'))
+    expect(onOpenDay).toHaveBeenLastCalledWith('2026-10-14')
+
+    await user.click(within(cell('Wednesday, October 14, 2026')).getByText('14'))
+    expect(onOpenDay).toHaveBeenCalledTimes(2)
+
+    await user.click(screen.getByRole('button', { name: /^Dentist,/ }))
+    expect(onOpenEvent).toHaveBeenCalledOnce()
+    expect(onOpenDay).toHaveBeenCalledTimes(2)
+
+    await user.click(cell('Wednesday, September 30, 2026'))
+    expect(onOpenDay).toHaveBeenLastCalledWith('2026-09-30')
   })
 
   it('shows events as buttons with the full date and time in their accessible name', async () => {
@@ -174,5 +191,48 @@ describe('MonthView', () => {
     const results = await axe(container)
 
     expect(results.violations).toEqual([])
+  })
+})
+
+// Phone-sized month cells show markers instead of event titles (FR-003a).
+describe('MonthView on a phone-sized screen', () => {
+  const five = [
+    allDaySummary('a1', 'Trip', '2026-10-14', '2026-10-15'),
+    ...[9, 10, 11, 12].map((h) =>
+      timedSummary(`t${h}`, `Event ${h}`, `2026-10-14T${h}:00:00-05:00`, `2026-10-14T${h}:30:00-05:00`),
+    ),
+  ]
+
+  it('shows up to three markers and a "+N" count, with the count in the day name', () => {
+    setNarrowViewport(true)
+    render(<Harness month={octoberMonth({ '2026-10-14': five })} />)
+
+    const day = screen.getByRole('gridcell', { name: 'Wednesday, October 14, 2026, 5 events, open in day view' })
+    const markers = day.querySelectorAll('.marker')
+    expect(markers).toHaveLength(3)
+    expect(markers[0]).toHaveAttribute('data-kind', 'all-day')
+    expect(markers[1]).toHaveAttribute('data-kind', 'timed')
+    expect(day).toHaveTextContent('+2')
+    expect(within(day).queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.getByRole('gridcell', { name: 'Thursday, October 1, 2026, no events, open in day view' })).toBeInTheDocument()
+  })
+
+  it('opens the day when a marker is tapped', async () => {
+    const user = userEvent.setup()
+    setNarrowViewport(true)
+    const onOpenDay = vi.fn()
+    render(<Harness month={octoberMonth({ '2026-10-14': five })} onOpenDay={onOpenDay} />)
+
+    const day = screen.getByRole('gridcell', { name: /^Wednesday, October 14, 2026, 5 events/ })
+    await user.click(day.querySelector('.marker')!)
+
+    expect(onOpenDay).toHaveBeenCalledWith('2026-10-14')
+  })
+
+  it('has no axe violations', async () => {
+    setNarrowViewport(true)
+    const { container } = render(<Harness month={octoberMonth({ '2026-10-14': five })} />)
+
+    expect((await axe(container)).violations).toEqual([])
   })
 })

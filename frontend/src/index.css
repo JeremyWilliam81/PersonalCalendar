@@ -88,8 +88,8 @@ button {
   color: var(--accent-contrast);
 }
 
-/* Month header */
-.month-header {
+/* Shared header (contracts/ui-interaction "Shared header") */
+.view-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -98,14 +98,45 @@ button {
   margin-bottom: 12px;
 }
 
-.month-header h2 {
+.view-header h2 {
   margin: 0;
   font-size: 1.5rem;
 }
 
-.month-nav {
+.view-header h2:focus-visible {
+  outline-offset: 4px;
+}
+
+.view-nav {
   display: flex;
   gap: 8px;
+}
+
+/* Touch targets: at least 44 × 44 px (FR-013c). */
+.view-header button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.view-nav button[aria-label] {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 599px) {
+  .view-header h2 {
+    flex: 1 1 100%;
+    font-size: 1.2rem;
+  }
+
+  .view-header .new-event {
+    margin-left: auto;
+  }
 }
 
 /* Grid */
@@ -131,6 +162,7 @@ button {
 }
 
 .day {
+  cursor: pointer;
   min-height: 110px;
   padding: 4px;
   border-right: 1px solid var(--border);
@@ -334,4 +366,385 @@ button {
   .event-time {
     display: none;
   }
+}
+
+/* View switcher (contracts/ui-interaction "Shared header") */
+.view-switcher {
+  display: flex;
+}
+
+.view-switcher button {
+  border-radius: 0;
+}
+
+.view-switcher button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.view-switcher button:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.view-switcher button + button {
+  border-left: none;
+}
+
+.view-switcher button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 600;
+}
+
+.view-name-short {
+  display: none;
+}
+
+/* Time grid: day view and wide week view (48 px per hour, research V10) */
+.time-scroll {
+  max-height: min(70vh, 900px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  touch-action: pan-y;
+}
+
+.time-grid {
+  display: grid;
+  position: relative;
+}
+
+.time-gutter {
+  position: relative;
+}
+
+.hour-label {
+  position: absolute;
+  right: 6px;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.time-column {
+  position: relative;
+  border-left: 1px solid var(--border);
+}
+
+.hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border);
+  pointer-events: none;
+}
+
+.time-block {
+  position: absolute;
+  z-index: 1;
+  overflow: hidden;
+  padding: 2px 4px;
+  border: 1px solid var(--bg);
+  border-radius: 4px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  text-align: left;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0 4px;
+}
+
+.time-block[data-continues-before='true'] {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.time-block[data-continues-after='true'] {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.time-block .event-title {
+  font-weight: 600;
+}
+
+.cluster-chip {
+  position: absolute;
+  right: 2px;
+  z-index: 2;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 6px;
+  border-radius: 22px;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+}
+
+/* Week view headings and all-day bars */
+.week-headings-row {
+  display: grid;
+  grid-template-columns: 3.5rem repeat(7, minmax(0, 1fr));
+}
+
+.week-headings-row::before {
+  content: '';
+}
+
+.week-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.week-heading:hover {
+  background: var(--surface);
+}
+
+.week-heading-weekday {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.week-heading[aria-current='date'] .day-number,
+.week-list-heading[aria-current='date'] .day-number {
+  background: var(--today);
+  color: var(--accent-contrast);
+}
+
+.all-day-bars {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 4px 3.5rem;
+}
+
+.all-day-bar,
+.list-event.all-day {
+  background: var(--all-day-bg);
+  color: var(--all-day-text);
+  border: none;
+}
+
+.all-day-bar {
+  min-height: 28px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.all-day-bar[data-continues-before='true'] {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.all-day-bar[data-continues-after='true'] {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Day view all-day list and the phone week list (FR-004a) */
+.day-all-day,
+.week-list-events {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.list-event {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+}
+
+.list-event-time {
+  flex: none;
+  font-size: 0.85rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.list-event-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.week-list-day {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.week-list-day h3 {
+  margin: 0;
+}
+
+.week-list-heading {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 4px;
+}
+
+.no-events {
+  margin: 0 0 4px;
+  padding-left: 4px;
+  color: var(--muted);
+}
+
+@media (max-width: 599px) {
+  .view-name-long {
+    display: none;
+  }
+
+  .view-name-short {
+    display: inline;
+  }
+}
+
+/* Empty-time taps (FR-013b): one large target per day column, under the event blocks */
+.time-slots {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  cursor: pointer;
+}
+
+.slot-highlight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--all-day-bg);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Phone month markers (FR-003a): dots for timed events, bars for all-day, not color alone */
+.markers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.marker {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.marker[data-kind='all-day'] {
+  width: 14px;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--all-day-text);
+}
+
+.marker-more {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+@media (max-width: 599px) {
+  .day {
+    min-height: 56px;
+    min-width: 44px;
+    padding: 2px;
+  }
+
+  .app {
+    padding: 12px 8px;
+  }
+}
+
+/* Today (FR-014): a filled circle or badge, plus the current-time line, never color alone */
+.today-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--today);
+  color: var(--accent-contrast);
+  font-size: 0.85rem;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.week-heading[aria-current='date'] .day-number,
+.week-list-heading[aria-current='date'] .day-number,
+.day[aria-current='date'] .day-number {
+  font-weight: 700;
+}
+
+.time-column[data-today='true'] {
+  background: color-mix(in srgb, var(--today) 6%, transparent);
+}
+
+.now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  border-top: 2px solid var(--error);
+  pointer-events: none;
+}
+
+.now-line::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--error);
+}
+
+/* Invalid link notice (FR-020) */
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.notice p {
+  margin: 0;
+}
+
+.notice button {
+  min-height: 44px;
 }

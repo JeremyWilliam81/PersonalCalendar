@@ -14,6 +14,13 @@ public static class CalendarEndpoints
             return ProblemResults.From(result, Results.Ok);
         });
 
+        app.MapGet("/api/calendar/days", async (
+            string? start, int? count, string? timeZone, GetDaysView useCase, CancellationToken cancellationToken) =>
+        {
+            var result = await useCase.HandleAsync(start, count, timeZone, cancellationToken);
+            return ProblemResults.From(result, Results.Ok);
+        });
+
         return app;
     }
 }

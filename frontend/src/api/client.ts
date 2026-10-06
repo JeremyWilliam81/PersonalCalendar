@@ -1,7 +1,8 @@
-import type { ApiResult, EventDetails, EventInput, MonthView } from './types'
+import type { ApiResult, DaysView, EventDetails, EventInput, MonthView } from './types'
 
 export interface CalendarApi {
   getMonth(timeZone: string, year?: number, month?: number): Promise<ApiResult<MonthView>>
+  getDays(timeZone: string, start: string, count: 1 | 7): Promise<ApiResult<DaysView>>
   getEvent(id: string, timeZone: string): Promise<ApiResult<EventDetails>>
   createEvent(input: EventInput): Promise<ApiResult<EventDetails>>
   updateEvent(id: string, input: EventInput): Promise<ApiResult<EventDetails>>
@@ -70,6 +71,9 @@ export const httpCalendarApi: CalendarApi = {
       query.set('month', String(month))
     }
     return request('GET', `/api/calendar/month?${query}`)
+  },
+  getDays(timeZone, start, count) {
+    return request('GET', `/api/calendar/days?${new URLSearchParams({ timeZone, start, count: String(count) })}`)
   },
   getEvent(id, timeZone) {
     return request('GET', `/api/events/${encodeURIComponent(id)}?${new URLSearchParams({ timeZone })}`)

@@ -15,6 +15,8 @@ const messages: Record<string, string> = {
   'end.notAfterStart': 'End must be after start.',
   'endDate.beforeStart': 'End date must be on or after the start date.',
   'timeZone.unknown': 'Unknown time zone.',
+  'goToDate.invalid': 'Enter a valid date.',
+  'goToDate.outOfRange': 'Choose a date between 1900 and 2199.',
 }
 
 export function messageFor(code: string): string {
