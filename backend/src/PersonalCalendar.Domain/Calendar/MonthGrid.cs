@@ -42,7 +42,9 @@ public static class MonthGrid
             for (var offset = 0; offset < 7; offset++)
             {
                 var date = weekStart.PlusDays(offset);
-                var dayEvents = eventsByDay.TryGetValue(date, out var list) ? EventOrdering.Order(list) : [];
+                var dayEvents = eventsByDay.TryGetValue(date, out var list)
+                    ? EventOrdering.Order(list, zone.AtStartOfDay(date).ToInstant())
+                    : [];
                 week.Add(new DayCell(date, date.Year == year && date.Month == month, date == today, dayEvents));
             }
 

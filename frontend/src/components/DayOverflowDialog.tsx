@@ -26,6 +26,7 @@ export function DayOverflowDialog({ date, events, timeZone, onOpenEvent, onClose
             <EventButton
               event={event}
               timeZone={timeZone}
+              date={date}
               tabbable
               onOpen={(opened) => {
                 onClose()

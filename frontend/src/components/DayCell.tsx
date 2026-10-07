@@ -55,7 +55,7 @@ export function DayCell({ day, timeZone, focused, maxVisible, narrow, onOpenDay,
             <ul className="day-events">
               {visible.map((event) => (
                 <li key={eventKey(event)}>
-                  <EventButton event={event} timeZone={timeZone} tabbable={focused} onOpen={onOpenEvent} />
+                  <EventButton event={event} timeZone={timeZone} date={day.date} tabbable={focused} onOpen={onOpenEvent} />
                 </li>
               ))}
             </ul>

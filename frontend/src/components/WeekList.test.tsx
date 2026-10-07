@@ -55,6 +55,16 @@ describe('WeekList (narrow, FR-004a)', () => {
     expect(props.onOpenEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }), '2026-10-14')
   })
 
+  it('shows the part of an event after midnight from 12:00 AM on the next day (003 FR-032)', () => {
+    renderList()
+
+    const thu = within(section('Thursday, October 15, 2026')).getAllByRole('button').slice(1)
+    expect(thu.map((b) => b.textContent)).toEqual(['12:00 AM – 1:00 AMLate show'])
+    expect(thu[0]).toHaveAccessibleName(
+      'Late show, Wednesday, October 14, 2026, 10:00 PM to Thursday, October 15, 2026, 1:00 AM, continues from the previous day',
+    )
+  })
+
   it('says "No events" on an empty day', () => {
     renderList()
 

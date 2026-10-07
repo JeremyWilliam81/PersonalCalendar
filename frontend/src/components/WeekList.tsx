@@ -1,8 +1,9 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react'
-import type { DaysView, EventSummary } from '../api/types'
+import type { DaysView, EventSummary, TimedSegment, TimelineDay } from '../api/types'
 import { addDays } from '../lib/dates'
-import { describeDay, describeEvent, eventKey } from '../lib/describe'
+import { describeDay, describeEventOnDay, eventKey } from '../lib/describe'
 import { formatDayHeading, formatFullDate, formatTimeShort } from '../lib/format'
+import { instantAfter } from '../lib/timeline'
 import { RepeatIcon } from './RepeatIcon'
 
 interface WeekListProps {
@@ -14,14 +15,34 @@ interface WeekListProps {
   onOpenEvent: (event: EventSummary, date: string) => void
 }
 
-function EventRow({ event, timeZone, onOpen }: { event: EventSummary; timeZone: string; onOpen: () => void }) {
+interface EventRowProps {
+  event: EventSummary
+  timeZone: string
+  day: TimelineDay
+  /** The event's part on this day; absent for all-day events. */
+  segment?: TimedSegment
+  onOpen: () => void
+}
+
+/** The event's own range, or its part from 12:00 AM on a day after the one it starts on (003 FR-032). */
+function timeText({ event, timeZone, day, segment }: EventRowProps): string {
+  if (event.isAllDay || !event.start || !event.end) return 'All day'
+  if (!segment?.continuesBefore) return `${formatTimeShort(event.start, timeZone)} – ${formatTimeShort(event.end, timeZone)}`
+  const from = instantAfter(day.dayStart, segment.offsetMinutes)
+  const to = instantAfter(day.dayStart, segment.offsetMinutes + segment.durationMinutes)
+  return `${formatTimeShort(from, timeZone)} – ${formatTimeShort(to, timeZone)}`
+}
+
+function EventRow(props: EventRowProps) {
+  const { event, timeZone, segment, onOpen } = props
   return (
-    <button type="button" className={event.isAllDay ? 'list-event all-day' : 'list-event'} aria-label={describeEvent(event, timeZone)} onClick={onOpen}>
-      <span className="list-event-time">
-        {event.isAllDay || !event.start || !event.end
-          ? 'All day'
-          : `${formatTimeShort(event.start, timeZone)} – ${formatTimeShort(event.end, timeZone)}`}
-      </span>
+    <button
+      type="button"
+      className={event.isAllDay ? 'list-event all-day' : 'list-event'}
+      aria-label={describeEventOnDay(event, timeZone, segment?.continuesBefore ?? false)}
+      onClick={onOpen}
+    >
+      <span className="list-event-time">{timeText(props)}</span>
       <span className="list-event-title">
         {event.title}
         {event.isRecurring && <RepeatIcon />}
@@ -67,7 +88,10 @@ export function WeekList({ week, selectedDate, onMoveDate, onOpenDay, onOpenEven
   return (
     <div className="week-list" ref={listRef}>
       {week.days.map((day) => {
-        const events = [...day.allDay, ...day.timed.map((s) => s.event)]
+        const rows: { event: EventSummary; segment?: TimedSegment }[] = [
+          ...day.allDay.map((event) => ({ event })),
+          ...day.timed.map((segment) => ({ event: segment.event, segment })),
+        ]
         return (
           <section key={day.date} aria-label={formatFullDate(day.date)} className="week-list-day">
             <h3>
@@ -84,13 +108,19 @@ export function WeekList({ week, selectedDate, onMoveDate, onOpenDay, onOpenEven
                 <span>{formatDayHeading(day.date)}</span>
               </button>
             </h3>
-            {events.length === 0 ? (
+            {rows.length === 0 ? (
               <p className="no-events">No events</p>
             ) : (
               <ul className="week-list-events">
-                {events.map((event) => (
+                {rows.map(({ event, segment }) => (
                   <li key={eventKey(event)}>
-                    <EventRow event={event} timeZone={week.timeZone} onOpen={() => onOpenEvent(event, day.date)} />
+                    <EventRow
+                      event={event}
+                      timeZone={week.timeZone}
+                      day={day}
+                      segment={segment}
+                      onOpen={() => onOpenEvent(event, day.date)}
+                    />
                   </li>
                 ))}
               </ul>

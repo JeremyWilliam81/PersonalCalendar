@@ -407,7 +407,29 @@ description: "Task list for 003 Recurring Events"
 - [X] T059 [P] Add a cross-zone regression test to `backend/tests/PersonalCalendar.Application.Tests/RecurringUseCaseTests.cs`: a series created in `America/Chicago` and viewed with `timeZone=Asia/Kolkata` and `Australia/Adelaide` places each occurrence at the converted instant, which can be on the next local day. Its `occurrenceDate` stays the Chicago original date (research S4).
 - [X] T060 [P] Run axe on the form with every repeat mode open and on the scope dialog in both modes in `frontend/src/components/RepeatFields.test.tsx` and `ScopeChoiceDialog.test.tsx`, if not already covered. Fix any violations.
 - [X] T061 Update `README.md` (feature list) with one line about recurring events, and confirm `specs/003-recurring-events/quickstart.md` matches the final behavior. Update it if names drifted.
-- [ ] T062 Run the full quickstart: the automated checks, then manual rows 1–16 at 375 × 667 touch emulation first and then in a wide window, with the device zone set to `America/Chicago` and then `America/New_York` (row 14). Record the results in the PR description, including the keyboard-only and screen-reader-label checks required by the constitution's merge gate.
+- [ ] T062 Run the full quickstart: the automated checks, then manual rows 1–17 at 375 × 667 touch emulation first and then in a wide window, with the device zone set to `America/Chicago` and then `America/New_York` (row 14). Record the results in the PR description, including the keyboard-only and screen-reader-label checks required by the constitution's merge gate.
+
+---
+
+## Phase 9: Events that run past midnight (FR-032, research S14)
+
+**Goal**: A timed event shows on the day it starts, at its start time. On each following day it covers, it shows from 12:00 AM and is ordered by that time among the day's events.
+
+**Independent Test**: Create a one-time event from 6:00 PM on Oct 8 to 2:00 AM on Oct 9, plus a 12:00 AM and an 8:00 AM event on Oct 9. Check the month view, the phone week list, and the time grid (quickstart row 17).
+
+### Tests (write first, must fail) ⚠️
+
+- [X] T063 [P] Add `TimedEvent_ContinuingFromPreviousDay_IsOrderedAsStartingAtMidnight` to `backend/tests/PersonalCalendar.Domain.Tests/MonthGridTests.cs`. On Oct 14, a 17:00 event comes before "Late" (18:00–01:00). On Oct 15, the order is "A at midnight" (00:00, same time, title first), then "Late", then the 08:00 event.
+- [X] T064 [P] Test `continuesFromPreviousDay` in `frontend/src/lib/describe.test.ts`: false on the start day and true on the next day (Chicago). False in `Asia/Kolkata`, where the same instant starts on the 9th. False for all-day events.
+- [X] T065 [P] In `frontend/src/components/MonthView.test.tsx`: a 6:00 PM–2:00 AM event shows "6:00 PM" on the 14th and "12:00 AM" (not "6:00 PM") on the 15th. On the 15th its accessible name ends with ", continues from the previous day". In `WeekList.test.tsx`: the 15th lists "12:00 AM – 1:00 AM Late show" with the same suffix.
+
+### Implementation
+
+- [X] T066 `EventOrdering.Order(events, dayStart?)` orders a timed event that began before `dayStart` as if it started at `dayStart`. `MonthGrid.Build` passes `zone.AtStartOfDay(date)` (`backend/src/PersonalCalendar.Domain/Calendar/`).
+- [X] T067 Add `continuesFromPreviousDay` and `describeEventOnDay` to `frontend/src/lib/describe.ts`. `EventButton` takes the cell's `date` and shows 12:00 AM on continued days. `DayCell` and `DayOverflowDialog` pass it. `WeekList` passes each row's `TimedSegment` and shows the segment's times when `continuesBefore` is true.
+- [ ] T068 Run quickstart row 17 at 375 × 667 touch emulation, then in a wide window.
+
+**Checkpoint**: Placement is unchanged (001 and 002 midnight tests still pass). Only the label and the order on the days after the first change.
 
 ---
 
@@ -423,6 +445,7 @@ description: "Task list for 003 Recurring Events"
 - **US4 (Phase 6)**: depends on US1, US2 (T033 and T036), and US3's persistence and scope types (T042–T045). It is independent of US3's form logic (T046).
 - **US5 (Phase 7)**: depends on US3.
 - **Polish (Phase 8)**: depends on every story being done.
+- **Past midnight (Phase 9)**: depends only on Foundational (`CalendarItem` layouts). It applies to one-time events and occurrences alike.
 
 ### Within each phase
 

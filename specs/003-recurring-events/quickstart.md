@@ -49,6 +49,7 @@ Run the app with the device zone set to `America/Chicago`. Use the browser's dev
 | 14 | Set the device zone to `America/New_York` and reload | The Chicago 7:00 series shows at 8:00 AM, and all-day series don't move |
 | 15 | Keyboard only: create a weekly series, toggle weekdays with Space, choose a scope with Tab and Enter | Everything works, focus is visible, and the scope result is announced |
 | 16 | Screen reader on an occurrence | It reads "Gym, Wednesday, October 21, 2026, 7:00 AM to 8:00 AM, repeats" |
+| 17 | Create "Party" from Oct 8, 6:00 PM to Oct 9, 2:00 AM, plus "Breakfast" on Oct 9 at 8:00 AM and "A midnight snack" on Oct 9 at 12:00 AM. Check the month view, the phone week list, and the week time grid. Then change Party's end to Oct 9, 12:00 AM | Oct 8 shows "6:00 PM Party". Oct 9 shows "12:00 AM A midnight snack", then "12:00 AM Party", then "8:00 AM Breakfast". The phone list shows "12:00 AM – 2:00 AM" on Oct 9, and the screen reader adds "continues from the previous day". With the midnight end, Party shows on Oct 8 only (FR-032) |
 
 ## Seed data via the API (optional)
 

@@ -1,5 +1,5 @@
 import type { EventSummary } from '../api/types'
-import { formatAllDayRange, formatFullDate, formatTimedRange } from './format'
+import { formatAllDayRange, formatFullDate, formatTimedRange, localDateInZone } from './format'
 
 type Describable = Pick<EventSummary, 'title' | 'isAllDay' | 'start' | 'end' | 'startDate' | 'endDate' | 'isRecurring'>
 
@@ -17,6 +17,17 @@ export function describeEvent(event: Describable, timeZone: string): string {
   const range = describeRange(event, timeZone)
   const text = range ? `${event.title}, ${range}` : event.title
   return event.isRecurring ? `${text}, repeats` : text
+}
+
+/** True when a timed event began on a date before `date` in the zone, so on `date` it shows from 12:00 AM (003 FR-032). */
+export function continuesFromPreviousDay(event: Pick<EventSummary, 'isAllDay' | 'start'>, date: string, timeZone: string): boolean {
+  return !event.isAllDay && !!event.start && localDateInZone(event.start, timeZone) < date
+}
+
+/** {@link describeEvent}, plus ", continues from the previous day" on a day after the one it starts on. */
+export function describeEventOnDay(event: Describable, timeZone: string, continuesBefore: boolean): string {
+  const text = describeEvent(event, timeZone)
+  return continuesBefore ? `${text}, continues from the previous day` : text
 }
 
 interface DayDescription {

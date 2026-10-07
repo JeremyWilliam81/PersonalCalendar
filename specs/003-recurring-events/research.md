@@ -155,3 +155,13 @@ Domain tests are written before the code. They use explicit zones and `FakeClock
 - **DST**: a 9:00 weekly series across the spring and fall changes in `America/Chicago`; occurrences at 02:30 on a gap day (shifted to 03:30) and 01:30 on an overlap day (the earlier one); `Australia/Lord_Howe` (30-minute shift); `Asia/Kolkata` and `Australia/Adelaide` displayed from a series in `America/Chicago`; and an overnight series (22:00–01:00) whose occurrence spans a DST change.
 - **Scope operations**: every bullet in S6, including the split total for COUNT, propagation of exceptions, the first-occurrence equivalence, the last remaining occurrence, and FR-016a refusals.
 - **Frontend**: `monthlyOptions`, `firstOccurrence`, and `describeRule` are tested with the same dates as the backend, under a fixed `TZ` and locale.
+
+## S14. Showing events on the days after midnight (FR-032)
+
+- **Decision**:
+  - **Order** (Domain): `EventOrdering.Order` takes the day's start instant. A timed event that began before it is ordered by that instant rather than by its own start. `MonthGrid` passes `zone.AtStartOfDay(date)`. `DayTimeline` already orders segments by their clipped start, so it doesn't change. This refines 001 research R6 for the days after the first, and leaves the start day's order unchanged.
+  - **Label** (frontend): `continuesFromPreviousDay(event, date, timeZone)` in `lib/describe.ts` compares the event's start date in the view zone with the cell's date. `EventButton` (month cells and the "+N more" list) then shows 12:00 AM instead of the start time. The phone week list uses the server's segment (`continuesBefore`, `offsetMinutes`, `durationMinutes`) for exact times. The time grid already hid the start time on continued segments (002 research V3).
+  - **Accessible name**: `describeEventOnDay` adds ", continues from the previous day" to the full description.
+- **Rationale**: Placement on dates was already correct (001 R6). Only the order and label on later days were misleading. Keeping the order in the Domain keeps date logic test-first (Constitution I). The label check is a pure, zone-aware comparison with no new API fields, so the 001 and 002 contracts don't change.
+- **Alternatives considered**: Adding a per-day `continuesBefore` flag to month-view `EventSummary`s was rejected, because it puts placement data on an event shape shared by every view. A "cont." label without a time was rejected because the requested behavior is time order with the day's other events.
+- **Known limit**: The month label prints the wall-clock time 00:00. In a zone whose DST change happens at midnight, the day starts at 1:00 AM. The order is still correct, because it uses `AtStartOfDay`.

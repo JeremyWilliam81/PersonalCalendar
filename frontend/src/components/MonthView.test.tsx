@@ -142,6 +142,20 @@ describe('MonthView', () => {
     expect(onOpenEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }), '2026-10-14')
   })
 
+  it('shows an event that runs past midnight on both days, as starting at 12:00 AM on the next day (003 FR-032)', () => {
+    const party = timedSummary('e2', 'Party', '2026-10-14T18:00:00-05:00', '2026-10-15T02:00:00-05:00')
+    render(<Harness month={octoberMonth({ '2026-10-14': [party], '2026-10-15': [party] })} />)
+
+    const [first, next] = screen.getAllByRole('button', { name: /^Party/ })
+    expect(first).toHaveTextContent('6:00 PM')
+    expect(first).toHaveAccessibleName('Party, Wednesday, October 14, 2026, 6:00 PM to Thursday, October 15, 2026, 2:00 AM')
+    expect(next).toHaveTextContent('12:00 AM')
+    expect(next).not.toHaveTextContent('6:00 PM')
+    expect(next).toHaveAccessibleName(
+      'Party, Wednesday, October 14, 2026, 6:00 PM to Thursday, October 15, 2026, 2:00 AM, continues from the previous day',
+    )
+  })
+
   it('lets Tab move from the focused day into its event buttons', async () => {
     const user = userEvent.setup()
     render(<Harness />)

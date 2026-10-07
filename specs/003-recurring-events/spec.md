@@ -17,6 +17,7 @@
 - Q: Should you be able to set how often a series repeats, such as "every 2 weeks" or "every 3 months", rather than always every day, week, month or year? → A: Yes, for all four frequencies, as "Every [N] days/weeks/months/years" with − / + buttons. N runs from 1 to 99 and defaults to 1.
 - Q: When you edit an occurrence of a series, should the calendar ask "This event / This and following / All events" before the edit form opens, or when you press Save? → A: At Save. The form always shows the repeat options. If they were changed, only "This and following events" and "All events" are offered.
 - Q: If you change an occurrence's date (for example, moving Wednesday's to Thursday) and then choose "All events" or "This and following events", what should happen to the series? → A: That choice isn't available. When an occurrence's start date is changed, only "This event" is offered at Save. To shift a series, the user edits its repeat options instead.
+- Q: An event from 6:00 PM on the 8th to 2:00 AM on the 9th was listed on the 9th as "6:00 PM", so it looked like a separate evening event on the 9th. How should it show on the next day? → A: It shows on the day it starts, at its start time. On each following day it covers, it shows as starting at 12:00 AM and is ordered among that day's events by that time. An event that ends exactly at midnight shows only on its start day (FR-032).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -134,7 +135,7 @@ I can change how a series repeats, or make it stop repeating, by editing it with
 - **DST changes**: A timed series keeps its local clock time across DST changes. A 9:00 AM weekly event stays at 9:00 AM before and after the change, even though the gap between the two moments is 167 or 169 hours.
 - **Occurrence in a DST gap or overlap**: If an occurrence's local time doesn't exist on a spring-forward day (e.g., 2:30 AM), it is moved forward by the length of the gap (to 3:30 AM). If the time occurs twice on a fall-back day, the earlier one is used. This matches feature 001's rules for single events.
 - **Device time zone changes**: A timed series repeats at its local clock time in the time zone where it was created. If the device moves to another zone, each occurrence keeps its moment in time and is shown in the new zone, as in feature 001 (FR-015). For example, a 9:00 AM Chicago weekly event shows at 10:00 AM in New York. All-day series never move.
-- **Occurrences spanning midnight or several days**: A series whose event spans midnight (e.g., 10:00 PM – 1:00 AM) or several days (e.g., a 3-day all-day event each month) shows every occurrence on each day it covers, as in features 001 and 002. Occurrences may overlap one another.
+- **Occurrences spanning midnight or several days**: A series whose event spans midnight (e.g., 10:00 PM – 1:00 AM) or several days (e.g., a 3-day all-day event each month) shows every occurrence on each day it covers, as in features 001 and 002. Occurrences may overlap one another. On every day after the first, the event shows as starting at 12:00 AM, not at its original start time (FR-032).
 - **Count and end-date limits**: A series with a set number of occurrences shows exactly that number, counting occurrences deleted on their own toward the total. A series with an end date never shows an occurrence that starts after the end date.
 - **Repeat with no end**: A series with no end shows occurrences on every matching date up to the end of the supported range (December 31, 2199, from feature 002).
 - **Occurrence moved onto another occurrence's date**: Moving one occurrence onto a date where the series already has an occurrence is allowed. Both are shown.
@@ -198,6 +199,10 @@ I can change how a series repeats, or make it stop repeating, by editing it with
 - **FR-029**: Every control MUST work with the keyboard alone, with visible focus, and MUST have an accessible name. Each weekday button MUST announce its full weekday name and whether it is selected.
 - **FR-030**: The repeat summary MUST be readable by screen readers in full. Each occurrence's accessible name MUST include that it repeats. Saves, deletes, and the scope choice result (e.g., "Changed this and following events") MUST be announced.
 - **FR-031**: Dates, weekday names, and times in the repeat options and summaries MUST follow the device's language and region settings, as in feature 001 (FR-021).
+
+**Events that run past midnight** (one-time events and occurrences alike)
+
+- **FR-032**: A timed event MUST appear on the day it starts, at its start time. If it runs past midnight, it MUST also appear on each following day it covers, as starting at 12:00 AM on that day. It MUST NOT show its original start time on those days. In the month view, the phone week list, and the "+N more" list, it MUST be ordered among that day's timed events as if it started at 12:00 AM (then by title, as for any two events starting at the same time). On those days its accessible name MUST still give its full start and end, followed by "continues from the previous day". An event that ends exactly at midnight MUST appear only on its start day (feature 001). In the phone week list, the time shown on those days runs from 12:00 AM to when the event ends that day.
 
 ### Key Entities
 

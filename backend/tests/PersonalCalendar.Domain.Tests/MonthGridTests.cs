@@ -118,6 +118,21 @@ public class MonthGridTests
     }
 
     [Fact]
+    public void TimedEvent_ContinuingFromPreviousDay_IsOrderedAsStartingAtMidnight()
+    {
+        // On the 15th, "Late" counts as starting at 00:00, so it ties with "A at midnight" and the title decides.
+        var late = TimedLocal("Late", Chicago, new(2026, 10, 14, 18, 0), new(2026, 10, 15, 1, 0));
+        var midnight = TimedLocal("A at midnight", Chicago, new(2026, 10, 15, 0, 0), new(2026, 10, 15, 0, 30));
+        var morning = TimedLocal("B in the morning", Chicago, new(2026, 10, 15, 8, 0), new(2026, 10, 15, 9, 0));
+        var evening = TimedLocal("C in the evening", Chicago, new(2026, 10, 14, 17, 0), new(2026, 10, 14, 19, 0));
+
+        var grid = MonthGrid.Build(2026, 10, Chicago, Today, [morning, late, midnight, evening]);
+
+        Assert.Equal(["C in the evening", "Late"], Day(grid, new LocalDate(2026, 10, 14)).Events.Select(e => e.Title));
+        Assert.Equal(["A at midnight", "Late", "B in the morning"], Day(grid, new LocalDate(2026, 10, 15)).Events.Select(e => e.Title));
+    }
+
+    [Fact]
     public void TimedEvent_IsPlacedByLocalDateInRequestedZone()
     {
         var ev = Timed("Call", Instant.FromUtc(2026, 10, 14, 20, 0), Instant.FromUtc(2026, 10, 14, 21, 0));
