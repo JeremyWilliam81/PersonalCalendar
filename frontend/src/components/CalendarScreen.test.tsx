@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { ApiContext } from '../api/ApiContext'
 import type { CalendarApi } from '../api/client'
-import { CHICAGO, daysView, octoberMonth, octoberWeekContent, stubApi } from '../test/fixtures'
+import { CHICAGO, allDaySummary, daysView, octoberMonth, octoberWeekContent, recurringSummary, segment, stubApi } from '../test/fixtures'
 import { setNarrowViewport } from '../test/viewport'
 import { CalendarScreen } from './CalendarScreen'
 import { LiveRegionProvider } from './LiveRegion'
@@ -401,5 +401,69 @@ describe('CalendarScreen: the address (US5)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByText(/That link couldn't be opened/, { selector: '.notice p' })).not.toBeInTheDocument()
+  })
+})
+
+describe('CalendarScreen: recurring events (003 US1)', () => {
+  const mwf = ['2026-10-12', '2026-10-14', '2026-10-16', '2026-10-19', '2026-10-21', '2026-10-23']
+  const occurrence = (date: string) =>
+    recurringSummary({ start: `${date}T07:00:00-05:00`, end: `${date}T08:00:00-05:00`, occurrenceDate: date })
+
+  function seriesApi() {
+    return stubApi({
+      getMonth: vi.fn(async () => ({
+        kind: 'ok' as const,
+        value: octoberMonth(Object.fromEntries(mwf.map((date) => [date, [occurrence(date)]]))),
+      })),
+      getDays: vi.fn(async (_tz: string, start: string, count: 1 | 7) => ({
+        kind: 'ok' as const,
+        value: daysView(start, count, {
+          timed: Object.fromEntries(mwf.map((date) => [date, [segment(occurrence(date), 420, 60)]])),
+          // Two occurrences of one all-day series in the same week share their id.
+          bars: ['2026-10-12', '2026-10-15'].map((date, i) => ({
+            event: { ...allDaySummary('s2', 'Class', date, date), isRecurring: true, occurrenceDate: date },
+            startIndex: i === 0 ? 1 : 4,
+            span: 1,
+            lane: 0,
+            continuesBefore: false,
+            continuesAfter: false,
+          })),
+        }),
+      })),
+    })
+  }
+
+  it('shows every occurrence of a series in the month, week and day views without duplicate-key warnings', async () => {
+    const user = userEvent.setup()
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderScreen(seriesApi())
+    await screen.findByRole('grid', { name: 'October 2026' })
+
+    expect(screen.getAllByRole('button', { name: /^Gym,/ })).toHaveLength(mwf.length)
+
+    await user.click(viewButton('Week'))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Gym,/ })).toHaveLength(3))
+
+    await user.click(viewButton('Day'))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: /^Gym,/ })).toHaveLength(1))
+
+    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/same key/)
+    errors.mockRestore()
+  })
+
+  it('reloads the current view after creating a series', async () => {
+    const user = userEvent.setup()
+    const api = seriesApi()
+    renderScreen(api)
+    await screen.findByRole('grid', { name: 'October 2026' })
+    const calls = vi.mocked(api.getMonth).mock.calls.length
+
+    await user.click(screen.getByRole('button', { name: 'New event' }))
+    await user.type(screen.getByLabelText(/Title/), 'Gym')
+    await user.click(screen.getByRole('radio', { name: 'Weekly' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(api.getMonth).toHaveBeenCalledTimes(calls + 1))
+    expect(api.createEvent).toHaveBeenCalledWith(expect.objectContaining({ recurrence: expect.objectContaining({ frequency: 'weekly' }) }))
   })
 })

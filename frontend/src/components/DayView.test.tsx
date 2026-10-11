@@ -42,7 +42,7 @@ describe('DayView', () => {
 
     await user.click(screen.getByRole('button', { name: /^Dentist,/ }))
 
-    expect(props.onOpenEvent).toHaveBeenCalledWith('e1', '2026-10-14')
+    expect(props.onOpenEvent).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }), '2026-10-14')
   })
 
   it('moves to the previous or next day with the arrow keys (FR-024)', async () => {

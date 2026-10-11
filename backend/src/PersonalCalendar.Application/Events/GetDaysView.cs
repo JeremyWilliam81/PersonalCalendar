@@ -30,8 +30,9 @@ public sealed class GetDaysView(IEventRepository repository, ZoneLookup zones, I
 
         var first = parsed!.Value;
         var last = first.PlusDays(count!.Value - 1);
-        var events = await repository.ListOverlappingAsync(
+        var stored = await repository.ListOverlappingAsync(
             zone.AtStartOfDay(first).ToInstant(), zone.AtStartOfDay(last.PlusDays(1)).ToInstant(), first, last, cancellationToken);
+        var events = CalendarItems.Build(stored, first, last);
 
         var now = clock.GetCurrentInstant().InZone(zone);
         var days = Enumerable.Range(0, count.Value)

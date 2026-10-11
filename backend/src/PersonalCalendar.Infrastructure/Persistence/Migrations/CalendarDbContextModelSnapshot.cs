@@ -30,6 +30,9 @@ namespace PersonalCalendar.Infrastructure.Persistence.Migrations
                     b.Property<string>("EndDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("EndLocal")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("EndUtc")
                         .HasColumnType("TEXT");
 
@@ -48,7 +51,22 @@ namespace PersonalCalendar.Infrastructure.Persistence.Migrations
                         .HasMaxLength(5000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("RecurrenceRule")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecurrenceTimeZone")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SeriesFirstDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SeriesLastDate")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("StartDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StartLocal")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("StartUtc")
@@ -69,6 +87,10 @@ namespace PersonalCalendar.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SeriesFirstDate", "SeriesLastDate")
+                        .HasDatabaseName("IX_Events_Series")
+                        .HasFilter("RecurrenceRule IS NOT NULL");
+
                     b.HasIndex("StartDate", "EndDate")
                         .HasDatabaseName("IX_Events_StartDate_EndDate");
 
@@ -77,8 +99,76 @@ namespace PersonalCalendar.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Events", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Events_Recurrence", "(RecurrenceRule IS NULL AND RecurrenceTimeZone IS NULL AND StartLocal IS NULL AND EndLocal IS NULL AND SeriesFirstDate IS NULL AND SeriesLastDate IS NULL) OR (RecurrenceRule IS NOT NULL AND RecurrenceTimeZone IS NOT NULL AND SeriesFirstDate IS NOT NULL AND ((IsAllDay = 0 AND StartLocal IS NOT NULL AND EndLocal IS NOT NULL) OR (IsAllDay = 1 AND StartLocal IS NULL AND EndLocal IS NULL)) AND (SeriesLastDate IS NULL OR SeriesLastDate >= SeriesFirstDate))");
+
                             t.HasCheckConstraint("CK_Events_Schedule", "(IsAllDay = 0 AND StartUtc IS NOT NULL AND EndUtc IS NOT NULL AND StartDate IS NULL AND EndDate IS NULL AND EndUtc > StartUtc) OR (IsAllDay = 1 AND StartDate IS NOT NULL AND EndDate IS NOT NULL AND StartUtc IS NULL AND EndUtc IS NULL AND EndDate >= StartDate)");
                         });
+                });
+
+            modelBuilder.Entity("PersonalCalendar.Infrastructure.Persistence.OccurrenceExceptionRow", b =>
+                {
+                    b.Property<Guid>("SeriesId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EndUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool?>("IsAllDay")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(5000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StartDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("StartUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("SeriesId", "OriginalDate");
+
+                    b.HasIndex("StartDate", "EndDate")
+                        .HasDatabaseName("IX_OccurrenceExceptions_StartDate_EndDate");
+
+                    b.HasIndex("StartUtc", "EndUtc")
+                        .HasDatabaseName("IX_OccurrenceExceptions_StartUtc_EndUtc");
+
+                    b.ToTable("OccurrenceExceptions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_OccurrenceExceptions_Shape", "(IsDeleted = 1 AND Title IS NULL AND Location IS NULL AND Notes IS NULL AND IsAllDay IS NULL AND StartUtc IS NULL AND EndUtc IS NULL AND StartDate IS NULL AND EndDate IS NULL) OR (IsDeleted = 0 AND Title IS NOT NULL AND ((IsAllDay = 0 AND StartUtc IS NOT NULL AND EndUtc IS NOT NULL AND StartDate IS NULL AND EndDate IS NULL AND EndUtc > StartUtc) OR (IsAllDay = 1 AND StartDate IS NOT NULL AND EndDate IS NOT NULL AND StartUtc IS NULL AND EndUtc IS NULL AND EndDate >= StartDate)))");
+                        });
+                });
+
+            modelBuilder.Entity("PersonalCalendar.Infrastructure.Persistence.OccurrenceExceptionRow", b =>
+                {
+                    b.HasOne("PersonalCalendar.Infrastructure.Persistence.EventRow", null)
+                        .WithMany("Exceptions")
+                        .HasForeignKey("SeriesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("PersonalCalendar.Infrastructure.Persistence.EventRow", b =>
+                {
+                    b.Navigation("Exceptions");
                 });
 #pragma warning restore 612, 618
         }

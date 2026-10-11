@@ -11,7 +11,7 @@ public static class DayTimeline
 {
     private static readonly Duration HourMarkProbe = Duration.FromMinutes(15);
 
-    public static DayTimelineResult Build(LocalDate date, DateTimeZone zone, IEnumerable<CalendarEvent> events)
+    public static DayTimelineResult Build(LocalDate date, DateTimeZone zone, IEnumerable<CalendarItem> events)
     {
         var dayStart = zone.AtStartOfDay(date).ToInstant();
         var dayEnd = zone.AtStartOfDay(date.PlusDays(1)).ToInstant();
@@ -45,7 +45,7 @@ public static class DayTimeline
         return marks;
     }
 
-    private static List<TimedSegment> Segments(Instant dayStart, Instant dayEnd, IEnumerable<CalendarEvent> events)
+    private static List<TimedSegment> Segments(Instant dayStart, Instant dayEnd, IEnumerable<CalendarItem> events)
     {
         var clipped = events
             .Select(e => (Event: e, Timed: e.Schedule as TimedSchedule))
@@ -60,6 +60,7 @@ public static class DayTimeline
             .ThenByDescending(c => c.End - c.Start)
             .ThenBy(c => c.Event.Title, StringComparer.OrdinalIgnoreCase)
             .ThenBy(c => c.Event.Id.Value)
+            .ThenBy(c => c.Event.Occurrence?.OriginalDate ?? LocalDate.MinIsoValue)
             .ToList();
 
         var columns = AssignColumns(clipped);
@@ -120,5 +121,5 @@ public static class DayTimeline
 
     private static Instant Min(Instant a, Instant b) => a < b ? a : b;
 
-    private sealed record Clipped(CalendarEvent Event, Instant Start, Instant End, bool ContinuesBefore, bool ContinuesAfter);
+    private sealed record Clipped(CalendarItem Event, Instant Start, Instant End, bool ContinuesBefore, bool ContinuesAfter);
 }

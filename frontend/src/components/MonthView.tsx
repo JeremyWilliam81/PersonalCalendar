@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import type { MonthView as MonthViewData } from '../api/types'
+import type { EventSummary, MonthView as MonthViewData } from '../api/types'
 import { useNarrowScreen } from '../hooks/useNarrowScreen'
 import { addDays, addMonthsClamped, endOfWeek, isWithin, startOfWeek } from '../lib/dates'
 import { formatWeekdayName } from '../lib/format'
@@ -16,7 +16,7 @@ interface MonthViewProps {
   /** Tapping a day, or Enter/Space on the focused day, opens it in the day view (FR-013). */
   onOpenDay: (date: string) => void
   /** The day the event was opened from becomes the focused day. */
-  onOpenEvent: (id: string, date: string) => void
+  onOpenEvent: (event: EventSummary, date: string) => void
   maxVisible?: number
   /** Incrementing it moves keyboard focus to the focused day (e.g. after the opened event was deleted). */
   focusRequest?: number
@@ -108,7 +108,7 @@ export function MonthView({
                 maxVisible={maxVisible}
                 narrow={narrow}
                 onOpenDay={onOpenDay}
-                onOpenEvent={(id) => onOpenEvent(id, day.date)}
+                onOpenEvent={(event) => onOpenEvent(event, day.date)}
                 onShowAll={setOverflowDate}
               />
             ))}
@@ -121,7 +121,7 @@ export function MonthView({
           date={overflowDay.date}
           events={overflowDay.events}
           timeZone={month.timeZone}
-          onOpenEvent={(id) => onOpenEvent(id, overflowDay.date)}
+          onOpenEvent={(event) => onOpenEvent(event, overflowDay.date)}
           onClose={() => setOverflowDate(null)}
         />
       )}

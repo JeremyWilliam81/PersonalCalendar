@@ -1,13 +1,14 @@
 import type { KeyboardEvent } from 'react'
-import type { DaysView } from '../api/types'
-import { describeEvent } from '../lib/describe'
+import type { DaysView, EventSummary } from '../api/types'
+import { describeEvent, eventKey } from '../lib/describe'
+import { RepeatIcon } from './RepeatIcon'
 import { TimeGrid } from './TimeGrid'
 
 interface DayViewProps {
   day: DaysView
   /** Id of the period heading in the shared header. */
   titleId: string
-  onOpenEvent: (id: string, date: string) => void
+  onOpenEvent: (event: EventSummary, date: string) => void
   /** ← and → move to the previous or next day (FR-024). */
   onStep: (delta: 1 | -1) => void
   onCreateAt?: (localStart: string) => void
@@ -30,15 +31,18 @@ export function DayView({ day, titleId, onOpenEvent, onStep, onCreateAt, now }: 
       {timeline.allDay.length > 0 && (
         <ul className="day-all-day">
           {timeline.allDay.map((event) => (
-            <li key={event.id}>
+            <li key={eventKey(event)}>
               <button
                 type="button"
                 className="list-event all-day"
                 aria-label={describeEvent(event, day.timeZone)}
-                onClick={() => onOpenEvent(event.id, timeline.date)}
+                onClick={() => onOpenEvent(event, timeline.date)}
               >
                 <span className="list-event-time">All day</span>
-                <span className="list-event-title">{event.title}</span>
+                <span className="list-event-title">
+                  {event.title}
+                  {event.isRecurring && <RepeatIcon />}
+                </span>
               </button>
             </li>
           ))}

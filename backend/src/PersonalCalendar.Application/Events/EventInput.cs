@@ -16,4 +16,9 @@ public sealed record EventInput(
     LocalDate? StartDate,
     LocalDate? EndDate,
     bool AcceptAdjustedTimes = false,
-    int? Version = null);
+    int? Version = null,
+    RecurrenceInput? Recurrence = null)
+{
+    /// <summary>The start date as entered, which the repeat rule is validated against. Null when missing.</summary>
+    public LocalDate? EnteredStartDate => IsAllDay ? StartDate : Start?.Date;
+}

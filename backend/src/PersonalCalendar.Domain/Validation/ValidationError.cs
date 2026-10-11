@@ -16,4 +16,19 @@ public static class ErrorCodes
     public const string EndNotAfterStart = "end.notAfterStart";
     public const string EndDateBeforeStart = "endDate.beforeStart";
     public const string TimeZoneUnknown = "timeZone.unknown";
+
+    // Recurring events (specs/003-recurring-events/data-model.md).
+    public const string RecurrenceFrequencyInvalid = "recurrence.frequency.invalid";
+    public const string RecurrenceIntervalOutOfRange = "recurrence.interval.outOfRange";
+    public const string RecurrenceWeekdaysRequired = "recurrence.weekdays.required";
+    public const string RecurrenceMonthlyInvalid = "recurrence.monthly.invalid";
+    public const string RecurrenceUntilBeforeStart = "recurrence.until.beforeStart";
+    public const string RecurrenceCountOutOfRange = "recurrence.count.outOfRange";
+    public const string OccurrenceRequired = "occurrence.required";
+    public const string OccurrenceInvalid = "occurrence.invalid";
+    public const string ScopeRequired = "scope.required";
+    public const string ScopeInvalid = "scope.invalid";
+    public const string ScopeThisWithRepeatChange = "scope.thisWithRepeatChange";
+    public const string ScopeDateChangeRequiresThis = "scope.dateChangeRequiresThis";
+    public const string ScopeDateAndRepeatChanged = "scope.dateAndRepeatChanged";
 }

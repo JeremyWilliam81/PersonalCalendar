@@ -9,7 +9,7 @@ namespace PersonalCalendar.Domain.Calendar;
 /// </summary>
 public static class AllDayLanes
 {
-    public static IReadOnlyList<AllDayBar> Build(LocalDate first, int dayCount, IEnumerable<CalendarEvent> allDayEvents)
+    public static IReadOnlyList<AllDayBar> Build(LocalDate first, int dayCount, IEnumerable<CalendarItem> allDayEvents)
     {
         var last = first.PlusDays(dayCount - 1);
         var laneEnds = new List<int>(); // last covered day index per lane

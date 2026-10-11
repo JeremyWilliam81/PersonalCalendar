@@ -10,5 +10,5 @@ public sealed record DayTimelineResult(
     Instant DayEnd,
     int LengthMinutes,
     IReadOnlyList<HourMark> HourMarks,
-    IReadOnlyList<CalendarEvent> AllDay,
+    IReadOnlyList<CalendarItem> AllDay,
     IReadOnlyList<TimedSegment> Timed);

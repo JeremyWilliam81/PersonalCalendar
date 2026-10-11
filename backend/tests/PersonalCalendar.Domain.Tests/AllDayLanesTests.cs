@@ -12,8 +12,8 @@ public class AllDayLanesTests
     private static readonly IClock Clock = new FakeClock(Instant.FromUtc(2026, 9, 29, 15, 0));
     private static readonly LocalDate WeekStart = new(2026, 10, 11);
 
-    private static CalendarEvent AllDay(string title, LocalDate start, LocalDate end) =>
-        CalendarEvent.Create(title, null, null, AllDaySchedule.Create(start, end).Value!, Chicago, Clock).Value!;
+    private static CalendarItem AllDay(string title, LocalDate start, LocalDate end) =>
+        Items.OneTime(CalendarEvent.Create(title, null, null, AllDaySchedule.Create(start, end).Value!, Chicago, Clock).Value!);
 
     private static AllDayBar Bar(IReadOnlyList<AllDayBar> bars, string title) => bars.Single(b => b.Event.Title == title);
 
@@ -84,5 +84,18 @@ public class AllDayLanesTests
             var days = lane.SelectMany(b => Enumerable.Range(b.StartIndex, b.Span)).ToList();
             Assert.Equal(days.Count, days.Distinct().Count());
         }
+    }
+
+    [Fact]
+    public void Occurrences_OfOneSeries_GetTheirOwnBars()
+    {
+        var id = EventId.New();
+        var monday = Items.Of(id, "Class", AllDaySchedule.Create(WeekStart.PlusDays(1), WeekStart.PlusDays(1)).Value!, WeekStart.PlusDays(1));
+        var thursday = Items.Of(id, "Class", AllDaySchedule.Create(WeekStart.PlusDays(4), WeekStart.PlusDays(4)).Value!, WeekStart.PlusDays(4));
+
+        var bars = AllDayLanes.Build(WeekStart, 7, [thursday, monday]);
+
+        Assert.Equal([1, 4], bars.Select(b => b.StartIndex));
+        Assert.All(bars, b => Assert.Equal(0, b.Lane));
     }
 }

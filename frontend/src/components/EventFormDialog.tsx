@@ -1,12 +1,15 @@
-import { useId, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useId, useRef, useState, type FormEvent } from 'react'
 import { useCalendarApi } from '../api/ApiContext'
-import type { EventDetails, EventInput, FieldErrors, LocalDateTimeString } from '../api/types'
+import type { EditScope, EventDetails, EventInput, FieldErrors, LocalDateTimeString, Recurrence } from '../api/types'
 import { describeEvent } from '../lib/describe'
-import { formatFullDate, formatLocalTime, toLocalInputValue } from '../lib/format'
+import { formatFullDate, formatLocalTime, localDateInZone, toLocalInputValue } from '../lib/format'
 import { messageFor } from '../lib/messages'
 import { newEventDefaults } from '../lib/newEventDefaults'
+import { scopeChoices } from '../lib/scope'
 import { ConfirmDialog } from './ConfirmDialog'
 import { Modal } from './Modal'
+import { RepeatFields } from './RepeatFields'
+import { ScopeChoiceDialog } from './ScopeChoiceDialog'
 import { useAnnounce } from './useAnnounce'
 
 interface EventFormDialogProps {
@@ -32,9 +35,11 @@ interface FormValues {
   endDate: string
   location: string
   notes: string
+  /** null: does not repeat. */
+  recurrence: Recurrence | null
 }
 
-type Field = Exclude<keyof FormValues, 'isAllDay'>
+type Field = Exclude<keyof FormValues, 'isAllDay' | 'recurrence'>
 
 // Order in which the first invalid field receives focus.
 const FIELD_ORDER: Field[] = ['title', 'start', 'end', 'startDate', 'endDate', 'location', 'notes']
@@ -57,6 +62,7 @@ function newEventValues(initialDate: string, now: Date, initialTimes?: { start: 
     endDate: '',
     location: '',
     notes: '',
+    recurrence: null,
   }
 }
 
@@ -70,7 +76,44 @@ function valuesFromEvent(event: EventDetails, timeZone: string): FormValues {
     endDate: event.endDate ?? '',
     location: event.location ?? '',
     notes: event.notes ?? '',
+    recurrence: event.recurrence ? withoutZone(event.recurrence) : null,
   }
+}
+
+/** The rule as the form edits it; the series zone is set by the server. */
+function withoutZone(recurrence: Recurrence): Recurrence {
+  const { timeZone, ...rule } = recurrence
+  void timeZone
+  return rule
+}
+
+function sameValue(a: FormValues[keyof FormValues], b: FormValues[keyof FormValues]): boolean {
+  return typeof a === 'object' ? JSON.stringify(a) === JSON.stringify(b) : a === b
+}
+
+const SCOPE_RESULTS: Record<EditScope, string> = {
+  this: 'Changed this event.',
+  following: 'Changed this and following events.',
+  all: 'Changed all events.',
+}
+
+/** The start date the form shows, for either kind of event. */
+function startDateOf(values: FormValues): string {
+  return values.isAllDay ? values.startDate : values.start.slice(0, 10)
+}
+
+/** Wall-clock length in minutes (or days for all-day), ignoring the date it starts on. */
+function lengthOf(values: FormValues): number {
+  return values.isAllDay
+    ? (Date.parse(values.endDate) - Date.parse(values.startDate)) / 86_400_000
+    : (Date.parse(`${values.end}Z`) - Date.parse(`${values.start}Z`)) / 60_000
+}
+
+/** True when the kind, time of day or length changed; a new date alone doesn't count (FR-016a). */
+function timesChanged(values: FormValues, initial: FormValues): boolean {
+  if (values.isAllDay !== initial.isAllDay) return true
+  if (!values.isAllDay && values.start.slice(11) !== initial.start.slice(11)) return true
+  return lengthOf(values) !== lengthOf(initial)
 }
 
 function nullIfBlank(value: string): string | null {
@@ -104,8 +147,17 @@ export function EventFormDialog({
   const [adjustment, setAdjustment] = useState<Adjustment | null>(null)
   const [confirmingDiscard, setConfirmingDiscard] = useState(false)
   const [saving, setSaving] = useState(false)
+  // For a series: the scope dialog, and the scope chosen (kept for a DST confirmation that follows it).
+  const [choosingScope, setChoosingScope] = useState<EditScope[] | null>(null)
+  const [scope, setScope] = useState<EditScope | null>(null)
 
-  const dirty = (Object.keys(initial) as (keyof FormValues)[]).some((key) => values[key] !== initial[key])
+  const dirty = (Object.keys(initial) as (keyof FormValues)[]).some((key) => !sameValue(values[key], initial[key]))
+
+  // The rule is filled in from the series' first date when editing a series, otherwise from the start entered.
+  const repeatStartDate = current?.recurrence
+    ? (current.seriesStartDate ?? (current.seriesStart ? localDateInZone(current.seriesStart, timeZone) : initialDate))
+    : (values.isAllDay ? values.startDate : values.start.slice(0, 10)) || initialDate
+  const recurrenceErrors = Object.fromEntries(Object.entries(errors).filter(([key]) => key.startsWith('recurrence.')))
 
   const fieldId = (field: Field) => `${idPrefix}-${field}`
   const errorId = (field: Field) => `${idPrefix}-${field}-error`
@@ -127,6 +179,11 @@ export function EventFormDialog({
     setAdjustment(null)
   }
 
+  const setRecurrence = useCallback((recurrence: Recurrence | null) => {
+    setValues((current) => ({ ...current, recurrence }))
+    setErrors((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith('recurrence.'))))
+  }, [])
+
   const requestClose = () => {
     if (dirty) setConfirmingDiscard(true)
     else onClose()
@@ -143,6 +200,7 @@ export function EventFormDialog({
     startDate: values.isAllDay ? values.startDate || null : null,
     endDate: values.isAllDay ? values.endDate || null : null,
     acceptAdjustedTimes,
+    recurrence: values.recurrence,
   })
 
   const showValidation = (fieldErrors: FieldErrors) => {
@@ -155,17 +213,20 @@ export function EventFormDialog({
     if (first) fieldRefs.current[first]?.focus()
   }
 
-  const save = async (acceptAdjustedTimes: boolean) => {
+  const save = async (acceptAdjustedTimes: boolean, chosenScope: EditScope | null = scope) => {
     setSaving(true)
     const input = buildInput(acceptAdjustedTimes)
-    const result = current
-      ? await api.updateEvent(current.id, { ...input, version: current.version })
-      : await api.createEvent(input)
+    const series = current?.recurrence && current.occurrenceDate && chosenScope
+    const result = !current
+      ? await api.createEvent(input)
+      : series
+        ? await api.updateEvent(current.id, { ...input, version: current.version }, { occurrence: current.occurrenceDate!, scope: chosenScope })
+        : await api.updateEvent(current.id, { ...input, version: current.version })
     setSaving(false)
 
     switch (result.kind) {
       case 'ok':
-        announce(`Saved ${describeEvent(result.value, result.value.timeZone)}.`)
+        announce(series ? SCOPE_RESULTS[chosenScope] : `Saved ${describeEvent(result.value, result.value.timeZone)}.`)
         onSaved(result.value)
         return
       case 'validation':
@@ -211,9 +272,35 @@ export function EventFormDialog({
     titleRef.current?.focus()
   }
 
+  // Editing an occurrence asks where the change applies, at Save (clarification Q4).
+  const dateChanged = startDateOf(values) !== startDateOf(initial)
+  const repeatChanged = !sameValue(values.recurrence, initial.recurrence)
+
+  const scopeWarning = (chosen: EditScope): string | null => {
+    if (chosen === 'this') return null
+    if (values.recurrence === null) {
+      return chosen === 'all'
+        ? 'All events except the first will be removed.'
+        : 'This and following events will be removed, and this one kept as a single event.'
+    }
+    const discards = (repeatChanged || timesChanged(values, initial)) && (current?.exceptionCount ?? 0) > 0
+    return discards ? 'Changes you made to single events in this series will be lost.' : null
+  }
+
   const handleSubmit = (submitEvent: FormEvent) => {
     submitEvent.preventDefault()
-    if (!saving) void save(false)
+    if (saving) return
+    if (!current?.recurrence) {
+      void save(false)
+      return
+    }
+
+    const choices = scopeChoices({ mode: 'edit', dateChanged, repeatChanged })
+    if (!choices) {
+      showValidation({ [values.isAllDay ? 'startDate' : 'start']: ['scope.dateAndRepeatChanged'] })
+      return
+    }
+    setChoosingScope(choices)
   }
 
   const adjustmentMessage = adjustment ? describeAdjustment(values, adjustment) : null
@@ -256,6 +343,7 @@ export function EventFormDialog({
           </div>
         )}
         {formError === 'gone' && <p className="form-error">This event no longer exists.</p>}
+        {errors.scope?.length ? <p className="form-error">{errors.scope.map(messageFor).join(' ')}</p> : null}
 
         <div className="field">
           <label htmlFor={fieldId('title')}>Title</label>
@@ -352,6 +440,13 @@ export function EventFormDialog({
           </div>
         )}
 
+        <RepeatFields
+          value={values.recurrence}
+          startDate={repeatStartDate}
+          errors={recurrenceErrors}
+          onChange={setRecurrence}
+        />
+
         <div className="field">
           <label htmlFor={fieldId('location')}>Location</label>
           <input
@@ -385,6 +480,20 @@ export function EventFormDialog({
           </button>
         </div>
       </form>
+
+      {choosingScope && (
+        <ScopeChoiceDialog
+          mode="edit"
+          choices={choosingScope}
+          warning={scopeWarning}
+          onCancel={() => setChoosingScope(null)}
+          onChoose={(chosen) => {
+            setChoosingScope(null)
+            setScope(chosen)
+            void save(false, chosen)
+          }}
+        />
+      )}
 
       {confirmingDiscard && (
         <ConfirmDialog

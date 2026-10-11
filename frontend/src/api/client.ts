@@ -1,12 +1,19 @@
-import type { ApiResult, DaysView, EventDetails, EventInput, MonthView } from './types'
+import type { ApiResult, DateString, DaysView, EditScope, EventDetails, EventInput, MonthView } from './types'
+
+/** Which occurrence of a series a change applies to, and how far (FR-015). Omitted for one-time events. */
+export interface SeriesTarget {
+  occurrence: DateString
+  scope: EditScope
+}
 
 export interface CalendarApi {
   getMonth(timeZone: string, year?: number, month?: number): Promise<ApiResult<MonthView>>
   getDays(timeZone: string, start: string, count: 1 | 7): Promise<ApiResult<DaysView>>
-  getEvent(id: string, timeZone: string): Promise<ApiResult<EventDetails>>
+  /** `occurrence` is required for a series and must be omitted for a one-time event. */
+  getEvent(id: string, timeZone: string, occurrence?: DateString): Promise<ApiResult<EventDetails>>
   createEvent(input: EventInput): Promise<ApiResult<EventDetails>>
-  updateEvent(id: string, input: EventInput): Promise<ApiResult<EventDetails>>
-  deleteEvent(id: string, version: number): Promise<ApiResult<null>>
+  updateEvent(id: string, input: EventInput, target?: SeriesTarget): Promise<ApiResult<EventDetails>>
+  deleteEvent(id: string, version: number, target?: SeriesTarget): Promise<ApiResult<null>>
 }
 
 interface Problem {
@@ -75,16 +82,24 @@ export const httpCalendarApi: CalendarApi = {
   getDays(timeZone, start, count) {
     return request('GET', `/api/calendar/days?${new URLSearchParams({ timeZone, start, count: String(count) })}`)
   },
-  getEvent(id, timeZone) {
-    return request('GET', `/api/events/${encodeURIComponent(id)}?${new URLSearchParams({ timeZone })}`)
+  getEvent(id, timeZone, occurrence) {
+    const query = new URLSearchParams({ timeZone })
+    if (occurrence) query.set('occurrence', occurrence)
+    return request('GET', `/api/events/${encodeURIComponent(id)}?${query}`)
   },
   createEvent(input) {
     return request('POST', '/api/events', input)
   },
-  updateEvent(id, input) {
-    return request('PUT', `/api/events/${encodeURIComponent(id)}`, input)
+  updateEvent(id, input, target) {
+    const query = target ? `?${new URLSearchParams({ occurrence: target.occurrence, scope: target.scope })}` : ''
+    return request('PUT', `/api/events/${encodeURIComponent(id)}${query}`, input)
   },
-  deleteEvent(id, version) {
-    return request('DELETE', `/api/events/${encodeURIComponent(id)}?${new URLSearchParams({ version: String(version) })}`)
+  deleteEvent(id, version, target) {
+    const query = new URLSearchParams({ version: String(version) })
+    if (target) {
+      query.set('occurrence', target.occurrence)
+      query.set('scope', target.scope)
+    }
+    return request('DELETE', `/api/events/${encodeURIComponent(id)}?${query}`)
   },
 }

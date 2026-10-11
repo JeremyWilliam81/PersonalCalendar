@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useCalendarApi } from '../api/ApiContext'
-import type { DaysView, EventDetails, MonthView as MonthViewData } from '../api/types'
+import type { DaysView, EditScope, EventDetails, EventSummary, MonthView as MonthViewData } from '../api/types'
 import { useNarrowScreen } from '../hooks/useNarrowScreen'
 import { useSwipe } from '../hooks/useSwipe'
 import { useViewState } from '../hooks/useViewState'
 import { isWithin } from '../lib/dates'
 import { formatPeriodTitle } from '../lib/format'
 import { newEventAt } from '../lib/newEventDefaults'
+import { ALL_SCOPES } from '../lib/scope'
 import { periodOf, stepPeriod, type ViewState, type ViewType } from '../lib/viewState'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DayView } from './DayView'
@@ -15,6 +16,7 @@ import { EventFormDialog } from './EventFormDialog'
 import { GoToDateDialog } from './GoToDateDialog'
 import { InvalidLinkNotice } from './InvalidLinkNotice'
 import { MonthView } from './MonthView'
+import { ScopeChoiceDialog } from './ScopeChoiceDialog'
 import { useAnnounce } from './useAnnounce'
 import { ViewHeader } from './ViewHeader'
 import { WeekList } from './WeekList'
@@ -22,7 +24,15 @@ import { WeekView } from './WeekView'
 
 type DialogState =
   | { kind: 'create'; date: string; times?: { start: string; end: string } }
-  | { kind: 'details'; id: string; reloadKey: number; notice?: string; confirmingDelete?: EventDetails }
+  | {
+      kind: 'details'
+      id: string
+      /** Set for an occurrence of a series (003 research S4). */
+      occurrenceDate?: string | null
+      reloadKey: number
+      notice?: string
+      confirmingDelete?: EventDetails
+    }
   | { kind: 'edit'; event: EventDetails }
   | null
 
@@ -44,6 +54,12 @@ function announcement(next: ViewState, previousView: ViewType): string {
 type FocusTarget = 'date' | 'heading'
 
 const CONFLICT_NOTICE = 'This event was changed in another window. Showing the latest version.'
+
+const DELETED: Record<EditScope, string> = {
+  this: 'Deleted this event.',
+  following: 'Deleted this and following events.',
+  all: 'Deleted all events.',
+}
 
 /** The selected date if the loaded grid shows it; otherwise today (if shown) or the 1st. */
 function focusDateIn(view: MonthViewData, selected: string): string {
@@ -156,35 +172,40 @@ export function CalendarScreen({ timeZone, today, now }: CalendarScreenProps) {
   const createAt = (localStart: string) =>
     setDialog({ kind: 'create', date: localStart.slice(0, 10), times: newEventAt(localStart) })
 
-  const openEvent = (id: string, date: string) => {
+  const openEvent = (event: EventSummary, date: string) => {
     setState({ view: state.view, date }, 'replace')
-    openDetails(id)
+    openDetails(event.id, event.occurrenceDate)
   }
 
-  const openDetails = (id: string, notice?: string) =>
+  const openDetails = (id: string, occurrenceDate?: string | null, notice?: string) =>
     setDialog((current) => ({
       kind: 'details',
       id,
+      occurrenceDate,
       notice,
       reloadKey: current?.kind === 'details' ? current.reloadKey + 1 : 0,
     }))
 
-  const deleteEvent = async (details: EventDetails) => {
-    const result = await api.deleteEvent(details.id, details.version)
+  /** For an occurrence of a series, `scope` says what to delete (003 FR-023). */
+  const deleteEvent = async (details: EventDetails, scope?: EditScope) => {
+    const result =
+      scope && details.occurrenceDate
+        ? await api.deleteEvent(details.id, details.version, { occurrence: details.occurrenceDate, scope })
+        : await api.deleteEvent(details.id, details.version)
     switch (result.kind) {
       case 'ok':
       case 'notFound': // already gone: the outcome the user asked for
         setDialog(null)
-        announce(`Deleted ${details.title}.`)
+        announce(scope ? DELETED[scope] : `Deleted ${details.title}.`)
         reload()
         setGridFocusRequest((n) => n + 1)
         return
       case 'conflict':
-        openDetails(details.id, CONFLICT_NOTICE)
+        openDetails(details.id, details.occurrenceDate, CONFLICT_NOTICE)
         announce('This event was changed in another window.')
         return
       default:
-        openDetails(details.id, "Couldn't delete the event. Try again.")
+        openDetails(details.id, details.occurrenceDate, "Couldn't delete the event. Try again.")
         announce("Couldn't delete the event.")
     }
   }
@@ -278,8 +299,9 @@ export function CalendarScreen({ timeZone, today, now }: CalendarScreenProps) {
       {dialog?.kind === 'details' && (
         <>
           <EventDetailsDialog
-            key={dialog.id}
+            key={`${dialog.id}:${dialog.occurrenceDate ?? ''}`}
             eventId={dialog.id}
+            occurrenceDate={dialog.occurrenceDate}
             timeZone={timeZone}
             reloadKey={dialog.reloadKey}
             notice={dialog.notice}
@@ -287,7 +309,15 @@ export function CalendarScreen({ timeZone, today, now }: CalendarScreenProps) {
             onEdit={(details) => setDialog({ kind: 'edit', event: details })}
             onDelete={(details) => setDialog({ ...dialog, notice: undefined, confirmingDelete: details })}
           />
-          {dialog.confirmingDelete && (
+          {dialog.confirmingDelete?.recurrence && (
+            <ScopeChoiceDialog
+              mode="delete"
+              choices={ALL_SCOPES}
+              onChoose={(scope) => void deleteEvent(dialog.confirmingDelete!, scope)}
+              onCancel={() => setDialog({ ...dialog, confirmingDelete: undefined })}
+            />
+          )}
+          {dialog.confirmingDelete && !dialog.confirmingDelete.recurrence && (
             <ConfirmDialog
               title={`Delete "${dialog.confirmingDelete.title}"?`}
               description="This can't be undone."

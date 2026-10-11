@@ -21,4 +21,11 @@ public static class NodaTimeConverters
     public static readonly ValueConverter<LocalDate, string> LocalDate = new(
         value => DatePattern.Format(value),
         text => DatePattern.Parse(text).Value);
+
+    public static readonly LocalDateTimePattern DateTimePattern =
+        LocalDateTimePattern.CreateWithInvariantCulture("uuuu'-'MM'-'dd'T'HH':'mm':'ss");
+
+    public static readonly ValueConverter<LocalDateTime, string> LocalDateTime = new(
+        value => DateTimePattern.Format(value),
+        text => DateTimePattern.Parse(text).Value);
 }

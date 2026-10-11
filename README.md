@@ -56,6 +56,10 @@ On a touchscreen, swipe left or right to go to the next or previous period; the 
 
 Phone layouts (stacked week list, month markers) apply below 600 px wide. Because the API listens on 127.0.0.1 only, check them with your browser's device emulation (for example 390 × 844 with touch enabled) rather than a real phone.
 
+## Recurring events
+
+An event can repeat daily, weekly on chosen weekdays, monthly (on a day number, or on a weekday such as "the second Wednesday" or "the last Friday"), or yearly, every 1 to 99 periods, and end never, on a date, or after a number of times. When you save or delete one occurrence you choose **This event**, **This and following events** or **All events**. A series repeats at its local clock time in the zone where it was created, so a 9:00 AM event stays at 9:00 AM across daylight saving changes. See [`specs/003-recurring-events/`](specs/003-recurring-events/).
+
 ## Data
 
 Events are stored in `%LOCALAPPDATA%\PersonalCalendar\calendar.db` (created on first run; the schema is migrated at startup). Delete that file to start with an empty calendar. Override the location with the `ConnectionStrings__Calendar` environment variable, e.g. `Data Source=C:\path\to\calendar.db`.
@@ -71,4 +75,5 @@ backend/
   tests/                               xUnit tests per layer
 frontend/                              React + TypeScript (Vite)
 specs/001-event-basics/                spec, plan, contracts, tasks for the first feature
+specs/003-recurring-events/            the same for recurring events
 ```

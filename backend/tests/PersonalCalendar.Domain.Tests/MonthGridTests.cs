@@ -12,10 +12,10 @@ public class MonthGridTests
     private static readonly IClock Clock = new FakeClock(Instant.FromUtc(2026, 9, 29, 15, 0));
     private static readonly LocalDate Today = new(2026, 9, 29);
 
-    private static CalendarEvent Timed(string title, Instant start, Instant end) =>
-        CalendarEvent.Create(title, null, null, TimedSchedule.Create(start, end).Value!, Chicago, Clock).Value!;
+    private static CalendarItem Timed(string title, Instant start, Instant end) =>
+        Items.OneTime(CalendarEvent.Create(title, null, null, TimedSchedule.Create(start, end).Value!, Chicago, Clock).Value!);
 
-    private static CalendarEvent TimedLocal(string title, DateTimeZone zone, LocalDateTime start, LocalDateTime end) =>
+    private static CalendarItem TimedLocal(string title, DateTimeZone zone, LocalDateTime start, LocalDateTime end) =>
         Timed(title, start.InZoneLeniently(zone).ToInstant(), end.InZoneLeniently(zone).ToInstant());
 
     private static DayCell Day(MonthGridResult grid, LocalDate date) =>
@@ -118,6 +118,21 @@ public class MonthGridTests
     }
 
     [Fact]
+    public void TimedEvent_ContinuingFromPreviousDay_IsOrderedAsStartingAtMidnight()
+    {
+        // On the 15th, "Late" counts as starting at 00:00, so it ties with "A at midnight" and the title decides.
+        var late = TimedLocal("Late", Chicago, new(2026, 10, 14, 18, 0), new(2026, 10, 15, 1, 0));
+        var midnight = TimedLocal("A at midnight", Chicago, new(2026, 10, 15, 0, 0), new(2026, 10, 15, 0, 30));
+        var morning = TimedLocal("B in the morning", Chicago, new(2026, 10, 15, 8, 0), new(2026, 10, 15, 9, 0));
+        var evening = TimedLocal("C in the evening", Chicago, new(2026, 10, 14, 17, 0), new(2026, 10, 14, 19, 0));
+
+        var grid = MonthGrid.Build(2026, 10, Chicago, Today, [morning, late, midnight, evening]);
+
+        Assert.Equal(["C in the evening", "Late"], Day(grid, new LocalDate(2026, 10, 14)).Events.Select(e => e.Title));
+        Assert.Equal(["A at midnight", "Late", "B in the morning"], Day(grid, new LocalDate(2026, 10, 15)).Events.Select(e => e.Title));
+    }
+
+    [Fact]
     public void TimedEvent_IsPlacedByLocalDateInRequestedZone()
     {
         var ev = Timed("Call", Instant.FromUtc(2026, 10, 14, 20, 0), Instant.FromUtc(2026, 10, 14, 21, 0));
@@ -129,8 +144,8 @@ public class MonthGridTests
         Assert.Equal([new LocalDate(2026, 10, 14)], DaysWith(inChicago, "Call"));
     }
 
-    private static CalendarEvent AllDay(string title, LocalDate start, LocalDate end) =>
-        CalendarEvent.Create(title, null, null, AllDaySchedule.Create(start, end).Value!, Chicago, Clock).Value!;
+    private static CalendarItem AllDay(string title, LocalDate start, LocalDate end) =>
+        Items.OneTime(CalendarEvent.Create(title, null, null, AllDaySchedule.Create(start, end).Value!, Chicago, Clock).Value!);
 
     [Fact]
     public void AllDayEvent_AppearsOnEveryDateInItsInclusiveRange()
@@ -207,5 +222,18 @@ public class MonthGridTests
         var grid = MonthGrid.Build(2026, 11, Chicago, Today, [ev]);
 
         Assert.Equal([new LocalDate(2026, 11, 1)], DaysWith(grid, "Overlap"));
+    }
+
+    [Fact]
+    public void Occurrences_OfOneSeries_ArePlacedOnTheirOwnDays()
+    {
+        var id = EventId.New();
+        var wednesday = Items.Of(id, "Gym", AllDaySchedule.Create(new(2026, 10, 21), new(2026, 10, 21)).Value!, new LocalDate(2026, 10, 21));
+        var friday = Items.Of(id, "Gym", AllDaySchedule.Create(new(2026, 10, 23), new(2026, 10, 23)).Value!, new LocalDate(2026, 10, 23));
+
+        var grid = MonthGrid.Build(2026, 10, Chicago, Today, [friday, wednesday]);
+
+        Assert.Equal([new LocalDate(2026, 10, 21), new LocalDate(2026, 10, 23)], DaysWith(grid, "Gym"));
+        Assert.Equal(new LocalDate(2026, 10, 23), Day(grid, new LocalDate(2026, 10, 23)).Events.Single().Occurrence!.OriginalDate);
     }
 }

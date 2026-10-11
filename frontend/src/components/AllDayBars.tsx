@@ -1,12 +1,13 @@
-import type { AllDayBar } from '../api/types'
-import { describeEvent } from '../lib/describe'
+import type { AllDayBar, EventSummary } from '../api/types'
+import { describeEvent, eventKey } from '../lib/describe'
+import { RepeatIcon } from './RepeatIcon'
 
 interface AllDayBarsProps {
   bars: AllDayBar[]
   timeZone: string
   /** The first day of the range; a bar opens with the date it starts on in this range. */
   dates: string[]
-  onOpenEvent: (id: string, date: string) => void
+  onOpenEvent: (event: EventSummary, date: string) => void
 }
 
 function describeBar(bar: AllDayBar, timeZone: string): string {
@@ -23,16 +24,17 @@ export function AllDayBars({ bars, timeZone, dates, onOpenEvent }: AllDayBarsPro
     <div className="all-day-bars" style={{ gridTemplateColumns: `repeat(${dates.length}, minmax(0, 1fr))` }}>
       {bars.map((bar) => (
         <button
-          key={bar.event.id}
+          key={eventKey(bar.event)}
           type="button"
           className="all-day-bar"
           aria-label={describeBar(bar, timeZone)}
           data-continues-before={bar.continuesBefore || undefined}
           data-continues-after={bar.continuesAfter || undefined}
           style={{ gridColumn: `${bar.startIndex + 1} / span ${bar.span}`, gridRow: bar.lane + 1 }}
-          onClick={() => onOpenEvent(bar.event.id, dates[bar.startIndex])}
+          onClick={() => onOpenEvent(bar.event, dates[bar.startIndex])}
         >
           {bar.event.title}
+          {bar.event.isRecurring && <RepeatIcon />}
           {bar.continuesBefore && <span className="visually-hidden">, continues from the previous week</span>}
           {bar.continuesAfter && <span className="visually-hidden">, continues into the next week</span>}
         </button>

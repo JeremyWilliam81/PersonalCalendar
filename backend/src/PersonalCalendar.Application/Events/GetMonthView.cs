@@ -31,7 +31,7 @@ public sealed class GetMonthView(IEventRepository repository, ZoneLookup zones, 
         var from = zone.AtStartOfDay(first).ToInstant();
         var to = zone.AtStartOfDay(last.PlusDays(1)).ToInstant();
 
-        var events = await repository.ListOverlappingAsync(from, to, first, last, cancellationToken);
+        var events = CalendarItems.Build(await repository.ListOverlappingAsync(from, to, first, last, cancellationToken), first, last);
         var grid = MonthGrid.Build(targetYear, targetMonth, zone, today, events);
 
         var weeks = grid.Weeks

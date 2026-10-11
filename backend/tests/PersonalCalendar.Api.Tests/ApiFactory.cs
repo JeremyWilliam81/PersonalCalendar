@@ -32,6 +32,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     /// <summary>A new app instance on the same database file, simulating a restart (FR-013).</summary>
     public ApiFactory CreateRestartedFactory() => new(DatabasePath, ownsDatabase: false);
 
+    /// <summary>An app on a database file prepared by the test, e.g. one created by an older migration. Deleted on dispose.</summary>
+    public static ApiFactory ForExistingDatabase(string databasePath) => new(databasePath, ownsDatabase: true);
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:Calendar", $"Data Source={DatabasePath};Pooling=False");

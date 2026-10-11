@@ -6,6 +6,11 @@ public sealed class CalendarDbContext(DbContextOptions<CalendarDbContext> option
 {
     public DbSet<EventRow> Events => Set<EventRow>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder) =>
+    public DbSet<OccurrenceExceptionRow> OccurrenceExceptions => Set<OccurrenceExceptionRow>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
         modelBuilder.ApplyConfiguration(new EventConfiguration());
+        modelBuilder.ApplyConfiguration(new OccurrenceExceptionConfiguration());
+    }
 }

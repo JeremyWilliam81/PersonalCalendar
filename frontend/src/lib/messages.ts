@@ -17,6 +17,21 @@ const messages: Record<string, string> = {
   'timeZone.unknown': 'Unknown time zone.',
   'goToDate.invalid': 'Enter a valid date.',
   'goToDate.outOfRange': 'Choose a date between 1900 and 2199.',
+  // Recurring events (specs/003-recurring-events/data-model.md).
+  'recurrence.frequency.invalid': 'Choose how often the event repeats.',
+  'recurrence.interval.outOfRange': 'Enter a number from 1 to 99.',
+  'recurrence.weekdays.required': 'Choose at least one weekday.',
+  'recurrence.weekdays.invalid': 'Choose at least one weekday.',
+  'recurrence.monthly.invalid': "That monthly option doesn't match the start date.",
+  'recurrence.until.beforeStart': 'End date must be on or after the start date.',
+  'recurrence.until.invalid': 'Enter a valid end date.',
+  'recurrence.count.outOfRange': 'Enter a number from 1 to 999.',
+  'recurrence.end.invalid': 'Choose when the series ends.',
+  'scope.thisWithRepeatChange':
+    "A single event can't have its own repeat settings. Choose This and following events or All events.",
+  'scope.dateChangeRequiresThis': 'A new date can only apply to this event.',
+  'scope.dateAndRepeatChanged':
+    'A new date applies only to this event, but repeat changes apply to the series. Undo one of them.',
 }
 
 export function messageFor(code: string): string {

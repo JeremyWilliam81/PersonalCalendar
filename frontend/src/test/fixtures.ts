@@ -8,6 +8,7 @@ import type {
   EventSummary,
   HourMark,
   MonthView,
+  Recurrence,
   TimedSegment,
   TimelineDay,
 } from '../api/types'
@@ -16,11 +17,11 @@ import { addDays } from '../lib/dates'
 export const CHICAGO = 'America/Chicago'
 
 export function timedSummary(id: string, title: string, start: string, end: string): EventSummary {
-  return { id, title, isAllDay: false, start, end, startDate: null, endDate: null }
+  return { id, title, isAllDay: false, start, end, startDate: null, endDate: null, isRecurring: false, occurrenceDate: null }
 }
 
 export function allDaySummary(id: string, title: string, startDate: string, endDate: string): EventSummary {
-  return { id, title, isAllDay: true, start: null, end: null, startDate, endDate }
+  return { id, title, isAllDay: true, start: null, end: null, startDate, endDate, isRecurring: false, occurrenceDate: null }
 }
 
 /** October 2026 in Chicago (grid 2026-09-27 .. 2026-10-31) with the given events per date. */
@@ -55,6 +56,48 @@ export const dentistDetails: EventDetails = {
   startDate: null,
   endDate: null,
   version: 1,
+}
+
+/** "Gym" weekly on Monday, Wednesday and Friday at 7:00 AM from 2026-10-12 (quickstart row 1). */
+export const gymRecurrence: Recurrence = {
+  frequency: 'weekly',
+  interval: 1,
+  weekdays: ['monday', 'wednesday', 'friday'],
+  monthly: null,
+  end: { type: 'never' },
+  timeZone: CHICAGO,
+}
+
+export function recurringSummary(overrides: Partial<EventSummary> = {}): EventSummary {
+  return {
+    ...timedSummary('s1', 'Gym', '2026-10-21T07:00:00-05:00', '2026-10-21T08:00:00-05:00'),
+    isRecurring: true,
+    occurrenceDate: '2026-10-21',
+    ...overrides,
+  }
+}
+
+export function recurringDetails(overrides: Partial<EventDetails> = {}): EventDetails {
+  return {
+    id: 's1',
+    title: 'Gym',
+    location: null,
+    notes: null,
+    isAllDay: false,
+    timeZone: CHICAGO,
+    start: '2026-10-21T07:00:00-05:00',
+    end: '2026-10-21T08:00:00-05:00',
+    startDate: null,
+    endDate: null,
+    version: 4,
+    recurrence: gymRecurrence,
+    occurrenceDate: '2026-10-21',
+    seriesStart: '2026-10-12T07:00:00-05:00',
+    seriesStartDate: null,
+    isException: false,
+    exceptionCount: 0,
+    ...overrides,
+  }
 }
 
 export function stubApi(overrides: Partial<CalendarApi> = {}): CalendarApi {

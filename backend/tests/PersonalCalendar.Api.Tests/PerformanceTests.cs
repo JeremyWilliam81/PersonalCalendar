@@ -45,6 +45,66 @@ public sealed class PerformanceTests : IDisposable
         Assert.True(stopwatch.ElapsedMilliseconds <= 300, $"Week view took {stopwatch.ElapsedMilliseconds} ms (002 SC-002 budget: 300 ms).");
     }
 
+    [Fact]
+    public async Task Views_With5000EventsAnd200EndlessSeries_RespondWithin300Milliseconds()
+    {
+        var client = _factory.CreateClient();
+        await SeedAsync(5000);
+        await SeedSeriesAsync(client, 200);
+        var urls = new[]
+        {
+            $"/api/calendar/month?timeZone={Uri.EscapeDataString(Chicago)}&year=2026&month=10",
+            $"/api/calendar/days?timeZone={Uri.EscapeDataString(Chicago)}&start=2026-10-11&count=7",
+        };
+
+        foreach (var url in urls)
+        {
+            (await client.GetAsync(url)).EnsureSuccessStatusCode(); // warm-up
+            var times = new List<long>();
+            for (var run = 0; run < 5; run++)
+            {
+                var stopwatch = Stopwatch.StartNew();
+                (await client.GetAsync(url)).EnsureSuccessStatusCode();
+                times.Add(stopwatch.ElapsedMilliseconds);
+            }
+
+            var median = times.Order().ElementAt(2);
+            Assert.True(median <= 300, $"{url} took a median of {median} ms (003 SC-004 budget: 300 ms).");
+        }
+    }
+
+    /// <summary>A mix of rules that never end, all in America/Chicago (003 task T058).</summary>
+    private static async Task SeedSeriesAsync(HttpClient client, int count)
+    {
+        object[] rules =
+        [
+            new { frequency = "daily", interval = 1, weekdays = Array.Empty<string>(), monthly = (object?)null, end = new { type = "never" } },
+            new { frequency = "weekly", interval = 1, weekdays = new[] { "monday", "wednesday", "friday" }, monthly = (object?)null, end = new { type = "never" } },
+            new { frequency = "monthly", interval = 1, weekdays = Array.Empty<string>(), monthly = (object?)new { type = "dayOfMonth" }, end = new { type = "never" } },
+            new { frequency = "monthly", interval = 1, weekdays = Array.Empty<string>(), monthly = (object?)new { type = "weekdayPosition", ordinal = 2 }, end = new { type = "never" } },
+            new { frequency = "yearly", interval = 1, weekdays = Array.Empty<string>(), monthly = (object?)null, end = new { type = "never" } },
+        ];
+
+        for (var i = 0; i < count; i++)
+        {
+            await client.CreateAsync(new
+            {
+                title = $"Series {i}",
+                location = (string?)null,
+                notes = (string?)null,
+                isAllDay = false,
+                timeZone = Chicago,
+                start = "2025-01-08T09:00", // a Wednesday, the second of its month
+                end = "2025-01-08T10:00",
+                startDate = (string?)null,
+                endDate = (string?)null,
+                acceptAdjustedTimes = false,
+                version = (int?)null,
+                recurrence = rules[i % rules.Length],
+            });
+        }
+    }
+
     /// <summary>Spreads events across 2026–2027: mostly one-hour timed events, every tenth an all-day event.</summary>
     private async Task SeedAsync(int count)
     {

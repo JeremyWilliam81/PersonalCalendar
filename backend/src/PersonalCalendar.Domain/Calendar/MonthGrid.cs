@@ -17,10 +17,10 @@ public static class MonthGrid
     }
 
     public static MonthGridResult Build(
-        int year, int month, DateTimeZone zone, LocalDate today, IEnumerable<CalendarEvent> events)
+        int year, int month, DateTimeZone zone, LocalDate today, IEnumerable<CalendarItem> events)
     {
         var (first, last) = GridRange(year, month);
-        var eventsByDay = new Dictionary<LocalDate, List<CalendarEvent>>();
+        var eventsByDay = new Dictionary<LocalDate, List<CalendarItem>>();
 
         foreach (var calendarEvent in events)
         {
@@ -42,7 +42,9 @@ public static class MonthGrid
             for (var offset = 0; offset < 7; offset++)
             {
                 var date = weekStart.PlusDays(offset);
-                var dayEvents = eventsByDay.TryGetValue(date, out var list) ? EventOrdering.Order(list) : [];
+                var dayEvents = eventsByDay.TryGetValue(date, out var list)
+                    ? EventOrdering.Order(list, zone.AtStartOfDay(date).ToInstant())
+                    : [];
                 week.Add(new DayCell(date, date.Year == year && date.Month == month, date == today, dayEvents));
             }
 

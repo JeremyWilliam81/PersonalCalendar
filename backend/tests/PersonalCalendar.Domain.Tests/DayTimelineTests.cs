@@ -16,14 +16,14 @@ public class DayTimelineTests
     private static readonly LocalDate Oct14 = new(2026, 10, 14);
     private static readonly LocalDate FallBack = new(2026, 11, 1);
 
-    private static CalendarEvent Timed(string title, Instant start, Instant end) =>
-        CalendarEvent.Create(title, null, null, TimedSchedule.Create(start, end).Value!, Chicago, Clock).Value!;
+    private static CalendarItem Timed(string title, Instant start, Instant end) =>
+        Items.OneTime(CalendarEvent.Create(title, null, null, TimedSchedule.Create(start, end).Value!, Chicago, Clock).Value!);
 
-    private static CalendarEvent Local(string title, LocalDateTime start, LocalDateTime end) =>
+    private static CalendarItem Local(string title, LocalDateTime start, LocalDateTime end) =>
         Timed(title, start.InZoneStrictly(Chicago).ToInstant(), end.InZoneStrictly(Chicago).ToInstant());
 
-    private static CalendarEvent AllDay(string title, LocalDate start, LocalDate end) =>
-        CalendarEvent.Create(title, null, null, AllDaySchedule.Create(start, end).Value!, Chicago, Clock).Value!;
+    private static CalendarItem AllDay(string title, LocalDate start, LocalDate end) =>
+        Items.OneTime(CalendarEvent.Create(title, null, null, AllDaySchedule.Create(start, end).Value!, Chicago, Clock).Value!);
 
     private static TimedSegment Segment(DayTimelineResult day, string title) => day.Timed.Single(s => s.Event.Title == title);
 
@@ -228,5 +228,22 @@ public class DayTimelineTests
 
         Assert.Equal(["Vacation", "Trip"], day.AllDay.Select(e => e.Title));
         Assert.Equal(["Dentist"], day.Timed.Select(s => s.Event.Title));
+    }
+
+    [Fact]
+    public void Occurrences_OfOneSeries_OnTheSameDay_AreBothPlacedSideBySide()
+    {
+        // A moved occurrence may land on a date where the series already has one (spec Edge Cases).
+        var id = EventId.New();
+        var nine = new LocalDateTime(2026, 10, 14, 9, 0).InZoneStrictly(Chicago).ToInstant();
+        var own = Items.Of(id, "Gym", TimedSchedule.Create(nine, nine + Duration.FromHours(1)).Value!, Oct14);
+        var moved = Items.Of(id, "Gym", TimedSchedule.Create(nine, nine + Duration.FromHours(1)).Value!, Oct14.PlusDays(-2));
+
+        var day = DayTimeline.Build(Oct14, Chicago, [moved, own]);
+
+        Assert.Equal(2, day.Timed.Count);
+        Assert.Equal([Oct14.PlusDays(-2), Oct14], day.Timed.Select(s => s.Event.Occurrence!.OriginalDate));
+        Assert.Equal([0, 1], day.Timed.Select(s => s.Column));
+        Assert.All(day.Timed, s => Assert.Equal(2, s.ColumnCount));
     }
 }

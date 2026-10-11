@@ -1,5 +1,5 @@
-import type { DayCell as DayCellData } from '../api/types'
-import { describeDay } from '../lib/describe'
+import type { DayCell as DayCellData, EventSummary } from '../api/types'
+import { describeDay, eventKey } from '../lib/describe'
 import { formatFullDate } from '../lib/format'
 import { EventButton } from './EventButton'
 
@@ -11,7 +11,7 @@ interface DayCellProps {
   /** Phone-sized screens show markers instead of event titles (FR-003a). */
   narrow: boolean
   onOpenDay: (date: string) => void
-  onOpenEvent: (id: string) => void
+  onOpenEvent: (event: EventSummary) => void
   onShowAll: (date: string) => void
 }
 
@@ -44,7 +44,7 @@ export function DayCell({ day, timeZone, focused, maxVisible, narrow, onOpenDay,
         day.events.length > 0 && (
           <span className="markers" aria-hidden="true">
             {visible.map((event) => (
-              <span key={event.id} className="marker" data-kind={event.isAllDay ? 'all-day' : 'timed'} />
+              <span key={eventKey(event)} className="marker" data-kind={event.isAllDay ? 'all-day' : 'timed'} />
             ))}
             {hidden > 0 && <span className="marker-more">+{hidden}</span>}
           </span>
@@ -54,8 +54,8 @@ export function DayCell({ day, timeZone, focused, maxVisible, narrow, onOpenDay,
           {visible.length > 0 && (
             <ul className="day-events">
               {visible.map((event) => (
-                <li key={event.id}>
-                  <EventButton event={event} timeZone={timeZone} tabbable={focused} onOpen={onOpenEvent} />
+                <li key={eventKey(event)}>
+                  <EventButton event={event} timeZone={timeZone} date={day.date} tabbable={focused} onOpen={onOpenEvent} />
                 </li>
               ))}
             </ul>
